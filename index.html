@@ -13,6 +13,28 @@
 <script src="react.production.min.js"></script>
 <script src="react-dom.production.min.js"></script>
 <script src="dexie.min.js"></script>
+<script>
+/* Blindaje de localStorage: en modo privado de Safari / almacenamiento bloqueado,
+   localStorage lanza excepción y tumbaría la app. Si no está disponible, se sustituye
+   por un almacén en memoria para que la app nunca se caiga por esto. */
+(function () {
+  var ok = false;
+  try { var k = '__dbm_ls_test__'; window.localStorage.setItem(k, '1'); window.localStorage.removeItem(k); ok = true; } catch (e) { ok = false; }
+  if (!ok) {
+    var mem = {};
+    var shim = {
+      getItem: function (k) { return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null; },
+      setItem: function (k, v) { mem[k] = String(v); },
+      removeItem: function (k) { delete mem[k]; },
+      clear: function () { mem = {}; },
+      key: function (i) { return Object.keys(mem)[i] || null; },
+      get length() { return Object.keys(mem).length; }
+    };
+    try { Object.defineProperty(window, 'localStorage', { value: shim, configurable: true }); }
+    catch (e2) { try { window.localStorage = shim; } catch (e3) {} }
+  }
+})();
+</script>
 <style>
 /* Fuentes incrustadas (offline). Barlow Condensed = UI; JetBrains Mono = dorsales/cronómetro */
 @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:400;font-display:swap;src:url('bc-400.woff2') format('woff2')}
