@@ -8342,16 +8342,15 @@ function MatchDayScreen(_ref28) {
           setOwnAsgn(oa);
           setRivAsgn(ra);
         } else if (mPlays.length === 0 && !pid) {
-          // Mostrar la pizarra de primera: crear una jugada por defecto (córner) y seleccionarla
-          var _tpl = PLAY_TEMPLATES[0];
+          // Mostrar la pizarra de primera, LIMPIA (sin fichas): jugada vacía para pintar sobre ella
           var _defId = 'play_' + uid();
           var _defPlay = {
             id: _defId, match_id: matchId, team_id: teamId,
-            code: _tpl.code, name: _tpl.name, play_type: _tpl.play_type, color: _tpl.color, user_created: false,
+            code: 'P1', name: 'Pizarra', play_type: 'corner_r', color: '#39FF14', user_created: true,
             canvas_data: {
-              pitch_zone: _tpl.play_type,
-              roles: _tpl.roles.map(function(r) { return _objectSpread(_objectSpread({}, r), {}, { custom_label: r.label }); }),
-              phases: [{ id: 'p1', name: 'Inicial', positions: Object.fromEntries(_tpl.roles.map(function(r) { return [r.role_key, { x: r.x, y: r.y }]; })) }]
+              pitch_zone: 'corner_r',
+              roles: [],
+              phases: [{ id: 'p1', name: 'Inicial', positions: {} }]
             }
           };
           yield savePlay(_defPlay);
