@@ -7198,7 +7198,45 @@ function StepAlineaciones(props) {
         btn('XI', localAccent, function(){ if (starters.length < 11) add(p.id, 'starter'); }, starters.length >= 11),
         btn('SUB', '#9aa0b4', function(){ if (subs.length < 15) add(p.id, 'sub'); }, subs.length >= 15) ]); }));
 
-  var rivalPanel = h(StepRival, { rivals: rivals, onUpdate: onUpdateRivals, awayTeam: awayTeam });
+  // ── Panel RIVAL con el MISMO estilo de listas que el local (XI / SUB) ──
+  var rStart = rivals.filter(function(r){ return r.role === 'starter'; });
+  var rSub = rivals.filter(function(r){ return r.role === 'sub'; });
+  function rSet(id, role){ onUpdateRivals(function(prev){ return prev.map(function(r){ return r.id === id ? Object.assign({}, r, { role: role }) : r; }); }); }
+  function rDel(id){ onUpdateRivals(function(prev){ return prev.filter(function(r){ return r.id !== id; }); }); }
+  function rName(id, name){ onUpdateRivals(function(prev){ return prev.map(function(r){ return r.id === id ? Object.assign({}, r, { name: name }) : r; }); }); }
+  function rAdd(){ onUpdateRivals(function(prev){ var n = prev.reduce(function(m, r){ return Math.max(m, r.squad_number || 0); }, 0) + 1; return prev.concat([{ id: 'rv_' + uid(), squad_number: n, name: '', position: 'CM', role: rStart.length < 11 ? 'starter' : 'sub' }]); }); }
+  function rivalRow(r, accent, actionEls){
+    var hasPhoto = !!r.photo;
+    return h('div', { key: r.id, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#0e0e1a', border: '1px solid ' + accent + '22', borderRadius: 6, marginBottom: 4 } },
+      h('div', { style: { width: 30, height: 30, borderRadius: '50%', background: hasPhoto ? '#0e0e1a' : accent + '22', backgroundImage: hasPhoto ? 'url(' + r.photo + ')' : 'none', backgroundSize: 'cover', backgroundPosition: 'center top', border: '1.5px solid ' + accent + '55', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', fontFamily: "'DBMono','Courier New',monospace", fontSize: 11, fontWeight: 900, color: accent } }, !hasPhoto && r.squad_number),
+      h('span', { style: { fontFamily: "'DBMono','Courier New',monospace", fontSize: 12, fontWeight: 900, color: accent, minWidth: 22 } }, r.squad_number),
+      h('input', { defaultValue: r.name || '', placeholder: 'Nombre del jugador', onBlur: function(e){ if (e.target.value !== (r.name || '')) rName(r.id, e.target.value); }, style: { flex: 1, minWidth: 0, background: 'transparent', border: 'none', borderBottom: '1px dashed #2a2a3a', color: '#dde1f0', fontSize: 13, fontWeight: 700, padding: '3px 2px', outline: 'none' } }),
+      h('div', { style: { display: 'flex', gap: 3 } }, actionEls));
+  }
+  var rivalComplete2 = rStart.length === 11;
+  var rivalPanel = h('div', { style: { padding: '12px 14px', maxWidth: 760, margin: '0 auto' } },
+    awayTeam && h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 } },
+      h(TeamLogo, { team: awayTeam, size: 28 }),
+      h('div', { style: { fontSize: 13, fontWeight: 900, color: rivalAccent, letterSpacing: 0.5 } }, (awayTeam.short_name || '') + ' · '),
+      h('div', { style: { fontSize: 11, color: '#9aa0b4' } }, awayTeam.name || 'Equipo rival')),
+    h('div', { style: { display: 'flex', gap: 10, marginTop: 8 } },
+      h('div', { style: { flex: 1, textAlign: 'center', padding: '8px', background: '#0e0e1a', border: '1px solid ' + rivalAccent + '55', borderRadius: 6 } },
+        h('div', { style: { fontSize: 18, fontWeight: 900, color: rivalComplete2 ? '#39FF14' : rivalAccent, fontFamily: "'DBMono','Courier New',monospace", lineHeight: 1 } }, rStart.length + '/11'),
+        h('div', { style: { fontSize: 8, color: rivalAccent, fontWeight: 700, letterSpacing: 1, marginTop: 2 } }, 'TITULARES')),
+      h('div', { style: { flex: 1, textAlign: 'center', padding: '8px', background: '#0e0e1a', border: '1px solid #4a556855', borderRadius: 6 } },
+        h('div', { style: { fontSize: 18, fontWeight: 900, color: '#9aa0b4', fontFamily: "'DBMono','Courier New',monospace", lineHeight: 1 } }, rSub.length),
+        h('div', { style: { fontSize: 8, color: '#9aa0b4', fontWeight: 700, letterSpacing: 1, marginTop: 2 } }, 'SUPLENTES'))),
+    sectionTitle('TITULARES (' + rStart.length + '/11)' + (rivalComplete2 ? '  ✓ COMPLETO' : ''), rivalComplete2 ? '#39FF14' : rivalAccent),
+    rStart.length === 0 ? emptyBox('Sin titulares. Añade jugadores del rival abajo.') :
+      rStart.map(function(r){ return rivalRow(r, rivalAccent, [
+        btn('↓ BANQ', '#9aa0b4', function(){ rSet(r.id, 'sub'); }, false),
+        btn('×', '#C62828', function(){ rDel(r.id); }, false) ]); }),
+    sectionTitle('SUPLENTES (' + rSub.length + ')', '#9aa0b4'),
+    rSub.length === 0 ? emptyBox('Sin suplentes.') :
+      rSub.map(function(r){ return rivalRow(r, '#9aa0b4', [
+        btn('↑ XI', rivalAccent, function(){ if (rStart.length < 11) rSet(r.id, 'starter'); }, rStart.length >= 11),
+        btn('×', '#C62828', function(){ rDel(r.id); }, false) ]); }),
+    h('button', { onClick: rAdd, style: { marginTop: 14, width: '100%', background: rivalAccent + '18', border: '1px dashed ' + rivalAccent + '66', color: rivalAccent, borderRadius: 6, padding: '10px', fontSize: 12, fontWeight: 900, cursor: 'pointer', letterSpacing: 1 } }, '+ AÑADIR JUGADOR'));
 
   function tabBtn(key, label, team, accent, count, complete){
     var activeC = tab === key;
@@ -11892,7 +11930,27 @@ function SquadEditorScreen(_ref37) {
     db.teams.where('league_id').equals(lid).toArray().then(setTeams);
   }, []);
   useEffect(() => {
-    if (selId) getSquad(selId).then(setPls);
+    if (!selId) return;
+    getSquad(selId).then(function(arr) {
+      // Auto-reparar plantillas oficiales: si los datos están incompletos/corruptos
+      // (pocos nombres reales), resincroniza desde los datos oficiales precargados.
+      if (REAL_SQUADS[selId]) {
+        var real = REAL_SQUADS[selId];
+        var good = arr.filter(function(p) { return p.name && p.name.trim().length > 2; }).length;
+        if (good < real.length * 0.6) {
+          var np = real.map(function(p) {
+            return {
+              id: selId + '_' + String(p.num).padStart(2, '0'),
+              team_id: selId, squad_number: p.num, name: p.name, position: p.position,
+              height: p.height || null, photo: p.photo || dbmAvatar(p, teamColorOf(selId)), is_active: true
+            };
+          });
+          db.players.bulkPut(np).then(function() { return getSquad(selId); }).then(setPls);
+          return;
+        }
+      }
+      setPls(arr);
+    });
   }, [selId]);
   function upd(_x61, _x62, _x63) {
     return _upd.apply(this, arguments);
@@ -12294,7 +12352,16 @@ function SquadEditorScreen(_ref37) {
       letterSpacing: 1,
       marginBottom: 8
     }
-  }, "ENTER / TAB para avanzar \xB7 Click para editar"), /*#__PURE__*/React.createElement("table", {
+  }, "ENTER / TAB para avanzar \xB7 Click para editar"),
+  /*#__PURE__*/React.createElement("button", {
+    onClick: function() {
+      var maxNum = pls.reduce(function(m, p) { return Math.max(m, p.squad_number || 0); }, 0);
+      var newId = selId + "_" + String(maxNum + 1).padStart(2, "0");
+      db.players.add({ id: newId, team_id: selId, squad_number: maxNum + 1, name: "", position: "GK", height: null, photo: null, is_active: true }).then(function() { getSquad(selId).then(setPls); });
+    },
+    style: { background: "#39FF14", color: "#07070e", border: "none", borderRadius: 6, padding: "8px 18px", fontSize: 12, fontWeight: 900, cursor: "pointer", letterSpacing: 1, marginBottom: 12 }
+  }, "+ AÑADIR JUGADOR"),
+  /*#__PURE__*/React.createElement("table", {
     style: {
       width: '100%',
       borderCollapse: 'collapse',
@@ -12308,12 +12375,16 @@ function SquadEditorScreen(_ref37) {
   }, ['', '#', 'NOMBRE', 'POS', 'ALT', 'FOTO'].map(h => /*#__PURE__*/React.createElement("th", {
     key: h,
     style: {
-      padding: '4px 6px',
+      padding: '7px 6px',
       textAlign: 'left',
-      fontSize: 9,
-      color: '#2a2a4a',
-      fontWeight: 700,
-      letterSpacing: 2
+      fontSize: 10,
+      color: '#9aa0c0',
+      fontWeight: 900,
+      letterSpacing: 2,
+      position: 'sticky',
+      top: 0,
+      background: '#07070e',
+      zIndex: 2
     }
   }, h)))), /*#__PURE__*/React.createElement("tbody", null, pls.map((p, i) => /*#__PURE__*/React.createElement("tr", {
     key: p.id,
@@ -12322,6 +12393,9 @@ function SquadEditorScreen(_ref37) {
     }
   }, /*#__PURE__*/React.createElement("td", {
     style: { padding: '2px 4px', width: 36 }
+  }, /*#__PURE__*/React.createElement("label", {
+    title: "Clic para subir la foto del jugador",
+    style: { cursor: 'pointer', display: 'inline-block' }
   }, p.photo ? /*#__PURE__*/React.createElement("div", {
     style: {
       width: 30, height: 30, borderRadius: '50%',
@@ -12333,11 +12407,14 @@ function SquadEditorScreen(_ref37) {
   }) : /*#__PURE__*/React.createElement("div", {
     style: {
       width: 30, height: 30, borderRadius: '50%',
-      background: '#1a1a2e', border: '1.5px dashed #2a2a3a',
+      background: '#0e1a0e', border: '1.5px dashed #39FF1466',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 14, color: '#3a3a4a'
+      fontSize: 16, fontWeight: 900, color: '#39FF14'
     }
-  }, '?')), /*#__PURE__*/React.createElement("td", {
+  }, '+'), /*#__PURE__*/React.createElement("input", {
+    type: "file", accept: "image/*", style: { display: 'none' },
+    onChange: function(e) { var file = e.target.files && e.target.files[0]; if (file) uploadPlayerPhoto(p.id, file); e.target.value = ''; }
+  }))), /*#__PURE__*/React.createElement("td", {
     style: {
       padding: '2px 6px',
       width: 56
@@ -12477,17 +12554,9 @@ function SquadEditorScreen(_ref37) {
     title: "Eliminar jugador",
     style: { background: "#C6282822", border: "1px solid #C62828", color: "#FF5252", cursor: "pointer", fontSize: 11, fontWeight: 900, borderRadius: 5, padding: "5px 14px", letterSpacing: 1 }
   }, "ELIMINAR")
-)), /*#__PURE__*/React.createElement("tr", null,
+)), false && /*#__PURE__*/React.createElement("tr", null,
   /*#__PURE__*/React.createElement("td", { colSpan: 7, style: { paddingTop: 10 } },
-    /*#__PURE__*/React.createElement("button", {
-      onClick: function() {
-        var maxNum = pls.reduce(function(m, p) { return Math.max(m, p.squad_number || 0); }, 0);
-        var newNum = maxNum + 1;
-        var newId = selId + "_" + String(newNum).padStart(2, "0");
-        db.players.add({ id: newId, team_id: selId, squad_number: newNum, name: "", position: "GK", height: null, photo: null, is_active: true }).then(function() { getSquad(selId).then(setPls); });
-      },
-      style: { background: "#39FF1411", border: "1px dashed #39FF1444", color: "#39FF14", borderRadius: 4, padding: "6px 18px", fontSize: 11, fontWeight: 900, cursor: "pointer", letterSpacing: 1, width: "100%" }
-    }, "+ AÑADIR JUGADOR")
+    /*#__PURE__*/React.createElement("button", { style: {} }, "+ AÑADIR JUGADOR")
   )
 ))))))));
 }
