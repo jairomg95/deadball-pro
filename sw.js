@@ -1,7 +1,7 @@
 // Service worker de DeadBall Manager PRO.
 // - Cachea el "shell" de la app (para abrir sin conexión).
 // - Cachea las imágenes remotas (escudos/fotos) tras la primera carga -> offline.
-const CACHE = 'dbm-pro-v5';
+const CACHE = 'dbm-pro-v6';
 const IMG_CACHE = 'dbm-pro-img-v1';
 const SHELL = [
   'index.html',
@@ -14,7 +14,12 @@ const SHELL = [
   'dexie.min.js',
   'firebase-app-compat.js',
   'firebase-auth-compat.js',
-  'firebase-firestore-compat.js'
+  'firebase-firestore-compat.js',
+  'bc-400.woff2',
+  'bc-600.woff2',
+  'bc-700.woff2',
+  'jbm-500.woff2',
+  'jbm-700.woff2'
 ];
 
 self.addEventListener('install', (e) => {
