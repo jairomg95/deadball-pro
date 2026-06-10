@@ -35,6 +35,445 @@
   }
 })();
 </script>
+<script>
+/* ============================================================
+   PACK SEGURO (v12): diagnóstico de errores + almacenamiento
+   persistente + aviso de instalación. Módulo independiente,
+   sin dependencias del árbol React.
+   ============================================================ */
+(function () {
+  'use strict';
+  /* 1) Registro global de errores (render + async). No oculta nada:
+     guarda los últimos 50 en window.DBM_ERRLOG para diagnóstico. */
+  window.DBM_ERRLOG = [];
+  function logErr(kind, msg, detail) {
+    try {
+      window.DBM_ERRLOG.push({ t: Date.now(), kind: kind, msg: String(msg).slice(0, 500), detail: detail ? String(detail).slice(0, 500) : '' });
+      if (window.DBM_ERRLOG.length > 50) window.DBM_ERRLOG.shift();
+      if (window.console && console.warn) console.warn('[DBM ' + kind + ']', msg);
+    } catch (e) {}
+  }
+  window.addEventListener('error', function (ev) {
+    logErr('error', ev.message || ev.error || 'error', ev.filename ? ev.filename + ':' + ev.lineno : '');
+  });
+  window.addEventListener('unhandledrejection', function (ev) {
+    var r = ev.reason;
+    logErr('promise', (r && (r.message || r.toString())) || 'rechazo sin motivo', r && r.stack ? r.stack.split('\n')[1] : '');
+  });
+
+  /* 2) Almacenamiento persistente: pide al navegador que NO purgue
+     IndexedDB bajo presión de disco (Android) ni por inactividad. */
+  function askPersist() {
+    try {
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persisted().then(function (yes) {
+          if (yes) return;
+          navigator.storage.persist().then(function (granted) {
+            try { localStorage.setItem('dbm_storage_persisted', granted ? '1' : '0'); } catch (e) {}
+          });
+        });
+      }
+    } catch (e) {}
+  }
+
+  /* 3) Aviso de instalación: si NO está en modo app (standalone),
+     banner descartable recomendando instalar + activar la nube.
+     iOS borra IndexedDB tras 7 días sin uso si no está instalada. */
+  var deferredInstall = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredInstall = e;
+  });
+  function isStandalone() {
+    try {
+      return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    } catch (e) { return false; }
+  }
+  function showInstallBanner() {
+    try {
+      if (isStandalone()) return;
+      if (localStorage.getItem('dbm_install_banner_dismissed') === '1') return;
+      if (document.getElementById('dbm-install-banner')) return;
+      var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var b = document.createElement('div');
+      b.id = 'dbm-install-banner';
+      b.setAttribute('role', 'status');
+      b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:max(14px,env(safe-area-inset-bottom));z-index:99990;' +
+        'background:rgba(10,12,24,0.97);border:1px solid rgba(57,255,20,0.35);border-radius:14px;' +
+        'padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,0.6);' +
+        'backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);animation:dbmFadeIn .3s ease both;' +
+        "font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif";
+      var txt = document.createElement('div');
+      txt.style.cssText = 'flex:1;font-size:13.5px;line-height:1.35;color:#dde1f0';
+      txt.innerHTML = '<b style="color:#39FF14">No pierdas tus datos.</b> ' +
+        (isIOS
+          ? 'Instala la app (Compartir → <b>Añadir a pantalla de inicio</b>) y activa la nube ☁. iOS borra los datos locales tras 7 días sin uso si no está instalada.'
+          : 'Instala la app y activa la nube ☁ para que tus plantillas y jugadas queden a salvo.');
+      b.appendChild(txt);
+      if (deferredInstall && !isIOS) {
+        var inst = document.createElement('button');
+        inst.textContent = 'INSTALAR';
+        inst.style.cssText = 'flex-shrink:0;background:#39FF14;color:#04140a;border:none;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13px;letter-spacing:1px;cursor:pointer;font-family:inherit';
+        inst.onclick = function () {
+          var p = deferredInstall; deferredInstall = null;
+          if (p) { p.prompt(); p.userChoice.then(function () { dismiss(false); }); } else { dismiss(false); }
+        };
+        b.appendChild(inst);
+      }
+      var x = document.createElement('button');
+      x.textContent = '✕';
+      x.setAttribute('aria-label', 'Cerrar aviso');
+      x.style.cssText = 'flex-shrink:0;background:transparent;color:#6a6a8a;border:1px solid #22223a;border-radius:9px;width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit';
+      x.onclick = function () { dismiss(true); };
+      b.appendChild(x);
+      function dismiss(remember) {
+        if (remember) { try { localStorage.setItem('dbm_install_banner_dismissed', '1'); } catch (e) {} }
+        if (b.parentNode) b.parentNode.removeChild(b);
+      }
+      document.body.appendChild(b);
+      window.addEventListener('appinstalled', function () { dismiss(true); });
+    } catch (e) { logErr('banner', e.message); }
+  }
+  if (document.readyState === 'complete') { askPersist(); setTimeout(showInstallBanner, 2500); }
+  else window.addEventListener('load', function () { askPersist(); setTimeout(showInstallBanner, 2500); });
+})();
+</script>
+<script>
+/* ============================================================
+   MODALES PROPIOS (v12): sustituyen a alert/confirm/prompt.
+   API por Promises, módulo DOM independiente del árbol React.
+     dbmAlert(msg, opts)            -> Promise<void>
+     dbmConfirm(msg, opts)          -> Promise<boolean>
+     dbmPrompt(msg, defecto, opts)  -> Promise<string|null>
+   opts: { title, okText, cancelText, danger:true (botón rojo) }
+   ============================================================ */
+(function () {
+  'use strict';
+  var ACCENT = '#39FF14', DANGER = '#ff3b5c';
+  var openCount = 0;
+  function build(kind, msg, def, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var ov = document.createElement('div');
+      ov.className = 'dbm-modal-ov';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99995;display:flex;align-items:center;justify-content:center;' +
+        'background:rgba(3,3,8,0.72);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);' +
+        'padding:20px;animation:dbmFadeIn .15s ease both';
+      var card = document.createElement('div');
+      card.setAttribute('role', kind === 'alert' ? 'alertdialog' : 'dialog');
+      card.setAttribute('aria-modal', 'true');
+      card.style.cssText = 'width:100%;max-width:340px;background:linear-gradient(180deg,#10101f,#0a0a16);' +
+        'border:1px solid ' + (opts.danger ? 'rgba(255,59,92,0.4)' : 'rgba(57,255,20,0.28)') + ';border-radius:16px;' +
+        'padding:18px 18px 14px;box-shadow:0 18px 50px rgba(0,0,0,0.7);animation:dbmPop .16s ease both;' +
+        "font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;color:#dde1f0";
+      if (opts.title) {
+        var h = document.createElement('div');
+        h.textContent = opts.title;
+        h.style.cssText = 'font-size:15px;font-weight:700;letter-spacing:1.5px;margin-bottom:8px;color:' + (opts.danger ? DANGER : ACCENT);
+        card.appendChild(h);
+      }
+      var p = document.createElement('div');
+      p.textContent = msg || '';
+      p.style.cssText = 'font-size:14.5px;line-height:1.45;white-space:pre-line;color:#c9cde0;margin-bottom:14px';
+      card.appendChild(p);
+      var input = null;
+      if (kind === 'prompt') {
+        input = document.createElement('input');
+        input.type = 'text';
+        input.value = def != null ? String(def) : '';
+        input.style.cssText = 'width:100%;background:#07070f;border:1px solid #22223a;border-radius:10px;' +
+          'padding:10px 12px;color:#dde1f0;font-size:16px;margin-bottom:14px;outline:none;font-family:inherit';
+        input.addEventListener('focus', function () { input.style.borderColor = 'rgba(57,255,20,0.5)'; });
+        input.addEventListener('blur', function () { input.style.borderColor = '#22223a'; });
+        card.appendChild(input);
+      }
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:10px;justify-content:flex-end';
+      function btn(label, primary) {
+        var b = document.createElement('button');
+        b.textContent = label;
+        b.style.cssText = 'min-height:38px;padding:8px 18px;border-radius:10px;font-size:13.5px;font-weight:700;' +
+          'letter-spacing:1px;cursor:pointer;font-family:inherit;' +
+          (primary
+            ? 'border:none;background:' + (opts.danger ? DANGER : ACCENT) + ';color:' + (opts.danger ? '#fff' : '#04140a')
+            : 'background:transparent;color:#9a9ec0;border:1px solid #25253f');
+        return b;
+      }
+      function close(val) {
+        openCount--;
+        try { document.removeEventListener('keydown', onKey, true); } catch (e) {}
+        if (ov.parentNode) ov.parentNode.removeChild(ov);
+        resolve(val);
+      }
+      var okB = btn(opts.okText || (kind === 'confirm' ? 'Aceptar' : kind === 'prompt' ? 'Aceptar' : 'OK'), true);
+      if (kind !== 'alert') {
+        var caB = btn(opts.cancelText || 'Cancelar', false);
+        caB.onclick = function () { close(kind === 'confirm' ? false : null); };
+        row.appendChild(caB);
+      }
+      okB.onclick = function () { close(kind === 'confirm' ? true : kind === 'prompt' ? input.value : undefined); };
+      row.appendChild(okB);
+      card.appendChild(row);
+      ov.appendChild(card);
+      ov.addEventListener('pointerdown', function (e) {
+        if (e.target === ov && kind !== 'alert') close(kind === 'confirm' ? false : null);
+      });
+      function onKey(e) {
+        if (e.key === 'Escape') { e.stopPropagation(); close(kind === 'confirm' ? false : kind === 'prompt' ? null : undefined); }
+        else if (e.key === 'Enter' && (kind !== 'prompt' || e.target === input)) { e.stopPropagation(); okB.click(); }
+      }
+      document.addEventListener('keydown', onKey, true);
+      document.body.appendChild(ov);
+      openCount++;
+      setTimeout(function () { (input || okB).focus(); if (input) input.select(); }, 30);
+    });
+  }
+  window.dbmAlert = function (msg, opts) { return build('alert', msg, null, opts); };
+  window.dbmConfirm = function (msg, opts) { return build('confirm', msg, null, opts); };
+  window.dbmPrompt = function (msg, def, opts) { return build('prompt', msg, def, opts); };
+})();
+</script>
+<style>
+/* Layout móvil del partido (v13): los paneles laterales se convierten
+   en cajones deslizantes y la pizarra ocupa todo el ancho. */
+@media (max-width: 720px) {
+  .dbm-side-roster, .dbm-side-plays {
+    position: fixed !important;
+    top: 50px; bottom: 0; left: 0;
+    z-index: 8900;
+    transform: translateX(-106%);
+    transition: transform .25s ease;
+    box-shadow: 10px 0 26px rgba(0,0,0,0.55);
+    border-right: 1px solid #1c1c30 !important;
+  }
+  .dbm-side-roster { width: 150px !important; }
+  .dbm-side-plays  { width: 182px !important; }
+  body.dbm-open-roster .dbm-side-roster { transform: none; }
+  body.dbm-open-plays  .dbm-side-plays  { transform: none; }
+  .dbm-mtabs { display: flex !important; }
+  .dbm-match-top { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  .dbm-match-top::-webkit-scrollbar { display: none; }
+}
+</style>
+<script>
+/* Pestañas laterales para abrir plantilla/jugadas en móvil (v13). */
+(function () {
+  'use strict';
+  var wrap = null, bR = null, bP = null;
+  function tabBtn(label, top) {
+    var b = document.createElement('button');
+    b.textContent = label;
+    b.style.cssText = 'position:fixed;left:0;top:' + top + ';z-index:8950;width:30px;height:58px;' +
+      'border-radius:0 10px 10px 0;background:rgba(10,12,24,0.95);border:1px solid rgba(57,255,20,0.3);border-left:none;' +
+      'color:#39FF14;font-size:9px;font-weight:700;letter-spacing:1px;cursor:pointer;padding:0;' +
+      "writing-mode:vertical-rl;text-orientation:mixed;font-family:'Barlow Condensed',Arial,sans-serif;" +
+      'box-shadow:4px 0 12px rgba(0,0,0,0.4)';
+    return b;
+  }
+  function setOpen(which) {
+    var b = document.body;
+    b.classList.toggle('dbm-open-roster', which === 'roster' && !b.classList.contains('dbm-open-roster'));
+    b.classList.toggle('dbm-open-plays', which === 'plays' && !b.classList.contains('dbm-open-plays'));
+    if (which === 'roster') b.classList.remove('dbm-open-plays');
+    if (which === 'plays') b.classList.remove('dbm-open-roster');
+    paint();
+  }
+  function closeAll() {
+    document.body.classList.remove('dbm-open-roster', 'dbm-open-plays');
+    paint();
+  }
+  function paint() {
+    if (!bR) return;
+    var b = document.body;
+    bR.style.background = b.classList.contains('dbm-open-roster') ? '#39FF14' : 'rgba(10,12,24,0.95)';
+    bR.style.color = b.classList.contains('dbm-open-roster') ? '#04140a' : '#39FF14';
+    bP.style.background = b.classList.contains('dbm-open-plays') ? '#39FF14' : 'rgba(10,12,24,0.95)';
+    bP.style.color = b.classList.contains('dbm-open-plays') ? '#04140a' : '#39FF14';
+  }
+  function ensure() {
+    if (wrap || !document.body) return;
+    wrap = document.createElement('div');
+    wrap.className = 'dbm-mtabs';
+    wrap.style.cssText = 'display:none';
+    bR = tabBtn('PLANTILLA', '64px');
+    bP = tabBtn('JUGADAS', '128px');
+    bR.onclick = function () { setOpen('roster'); };
+    bP.onclick = function () { setOpen('plays'); };
+    wrap.appendChild(bR); wrap.appendChild(bP);
+    document.body.appendChild(wrap);
+    /* tocar fuera de los cajones los cierra */
+    document.addEventListener('pointerdown', function (e) {
+      if (window.innerWidth > 720) return;
+      if (!document.body.classList.contains('dbm-open-roster') && !document.body.classList.contains('dbm-open-plays')) return;
+      var t = e.target;
+      if (t.closest && (t.closest('.dbm-side-roster') || t.closest('.dbm-side-plays') || t.closest('.dbm-mtabs'))) return;
+      closeAll();
+    }, true);
+  }
+  setInterval(function () {
+    ensure();
+    if (!wrap) return;
+    var onMatch = !!document.querySelector('.dbm-side-roster');
+    wrap.style.visibility = onMatch ? 'visible' : 'hidden';
+    if (!onMatch) closeAll();
+  }, 1000);
+})();
+</script>
+<script>
+/* ============================================================
+   COMPARTIR PIZARRA COMO IMAGEN + MODO SOL (v12).
+   Módulo DOM independiente. Detecta la pizarra (svg 680x500)
+   o el campo de alineación (svg 680x1050) visibles y muestra
+   dos botones flotantes: exportar PNG con marca y alto
+   contraste para luz solar directa (uso a pie de campo).
+   ============================================================ */
+(function () {
+  'use strict';
+  var SEL = 'svg[viewBox="0 0 680 500"],svg[viewBox="0 0 680 1050"]';
+  function boardSvg() {
+    var list = document.querySelectorAll(SEL);
+    var best = null, area = 0;
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i].getBoundingClientRect();
+      if (r.width > 150 && r.height > 120 && r.bottom > 0 && r.top < window.innerHeight) {
+        var a = r.width * r.height;
+        if (a > area) { area = a; best = list[i]; }
+      }
+    }
+    return best;
+  }
+
+  /* ---- Modo sol: filtro de brillo/contraste solo sobre el campo ---- */
+  var st = document.createElement('style');
+  st.textContent = 'body.dbm-sun svg[viewBox="0 0 680 500"],body.dbm-sun svg[viewBox="0 0 680 1050"]{filter:brightness(1.8) contrast(1.08) saturate(1.12)}';
+  document.head.appendChild(st);
+  var sunOn = false;
+  try { sunOn = localStorage.getItem('dbm_sun_mode') === '1'; } catch (e) {}
+  function applySun() { if (document.body) document.body.classList.toggle('dbm-sun', sunOn); }
+
+  /* ---- Botones flotantes ---- */
+  var shareB = null, sunB = null;
+  function mkBtn(symbol, title, bottom) {
+    var b = document.createElement('button');
+    b.textContent = symbol;
+    b.title = title;
+    b.setAttribute('aria-label', title);
+    b.style.cssText = 'position:fixed;right:10px;bottom:' + bottom + 'px;z-index:9000;width:42px;height:42px;' +
+      'border-radius:50%;background:rgba(10,12,24,0.92);border:1px solid rgba(57,255,20,0.35);color:#39FF14;' +
+      'font-size:17px;cursor:pointer;display:none;align-items:center;justify-content:center;' +
+      'box-shadow:0 4px 14px rgba(0,0,0,0.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)';
+    document.body.appendChild(b);
+    return b;
+  }
+  function paintSun() {
+    if (!sunB) return;
+    sunB.style.background = sunOn ? '#39FF14' : 'rgba(10,12,24,0.92)';
+    sunB.style.color = sunOn ? '#04140a' : '#39FF14';
+  }
+  function ensure() {
+    if (shareB || !document.body) return;
+    shareB = mkBtn('\u2934', 'Compartir como imagen', 178);
+    sunB = mkBtn('\u2600', 'Modo sol (alto contraste)', 130);
+    shareB.onclick = exportBoard;
+    sunB.onclick = function () {
+      sunOn = !sunOn;
+      try { localStorage.setItem('dbm_sun_mode', sunOn ? '1' : '0'); } catch (e) {}
+      applySun(); paintSun();
+    };
+    paintSun();
+  }
+  function tick() {
+    ensure();
+    if (!shareB) return;
+    applySun();
+    var vis = !!boardSvg();
+    shareB.style.display = vis ? 'flex' : 'none';
+    sunB.style.display = vis ? 'flex' : 'none';
+  }
+  setInterval(tick, 1200);
+
+  /* ---- Exportar a PNG con marca ---- */
+  var busy = false;
+  function exportBoard() {
+    if (busy) return;
+    var svg = boardSvg();
+    if (!svg) { if (window.dbmAlert) dbmAlert('No hay ninguna pizarra visible.'); return; }
+    busy = true;
+    try {
+      var vb = (svg.getAttribute('viewBox') || '0 0 680 500').split(/\s+/);
+      var vw = parseFloat(vb[2]) || 680, vh = parseFloat(vb[3]) || 500;
+      var clone = svg.cloneNode(true);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('width', vw);
+      clone.setAttribute('height', vh);
+      var styl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      styl.textContent = 'text{font-family:"Arial Narrow",Arial,sans-serif}';
+      clone.insertBefore(styl, clone.firstChild);
+      var xml = new XMLSerializer().serializeToString(clone);
+      var blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var CW = 1360, scale = CW / vw;
+          var bh = Math.round(vh * scale), FOOT = 92;
+          var c = document.createElement('canvas');
+          c.width = CW; c.height = bh + FOOT;
+          var ctx = c.getContext('2d');
+          ctx.fillStyle = '#07070e';
+          ctx.fillRect(0, 0, c.width, c.height);
+          ctx.drawImage(img, 0, 0, CW, bh);
+          /* pie con marca */
+          ctx.fillStyle = '#0a0a16';
+          ctx.fillRect(0, bh, CW, FOOT);
+          ctx.fillStyle = 'rgba(57,255,20,0.5)';
+          ctx.fillRect(0, bh, CW, 2);
+          ctx.fillStyle = '#39FF14';
+          ctx.font = '700 34px "Arial Narrow",Arial,sans-serif';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('\u2B21 DEADBALL MANAGER PRO', 28, bh + FOOT / 2);
+          ctx.fillStyle = '#8a8eae';
+          ctx.font = '400 26px "Arial Narrow",Arial,sans-serif';
+          var dateTxt = new Date().toLocaleDateString('es-ES');
+          ctx.textAlign = 'right';
+          ctx.fillText(dateTxt, CW - 28, bh + FOOT / 2);
+          ctx.textAlign = 'left';
+          URL.revokeObjectURL(url);
+          c.toBlob(function (png) {
+            busy = false;
+            if (!png) { if (window.dbmAlert) dbmAlert('No se pudo generar la imagen.'); return; }
+            var fname = 'jugada_dbm_' + new Date().toISOString().slice(0, 10) + '.png';
+            var file = null;
+            try { file = new File([png], fname, { type: 'image/png' }); } catch (e) {}
+            if (file && navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+              navigator.share({ files: [file], title: 'DeadBall Manager PRO' }).catch(function () {});
+            } else {
+              var a = document.createElement('a');
+              a.href = URL.createObjectURL(png);
+              a.download = fname;
+              document.body.appendChild(a);
+              a.click();
+              setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+            }
+          }, 'image/png');
+        } catch (e2) {
+          busy = false;
+          if (window.dbmAlert) dbmAlert('Error al exportar: ' + e2.message);
+        }
+      };
+      img.onerror = function () {
+        busy = false;
+        URL.revokeObjectURL(url);
+        if (window.dbmAlert) dbmAlert('No se pudo procesar la pizarra.');
+      };
+      img.src = url;
+    } catch (e) {
+      busy = false;
+      if (window.dbmAlert) dbmAlert('Error al exportar: ' + e.message);
+    }
+  }
+})();
+</script>
 <style>
 /* Fuentes incrustadas (offline). Barlow Condensed = UI; JetBrains Mono = dorsales/cronómetro */
 @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:400;font-display:swap;src:url('bc-400.woff2') format('woff2')}
@@ -1071,7 +1510,7 @@ function downloadJSON(obj, filename) {
     localStorage.setItem(LAST_EXPORT_KEY, new Date().toISOString());
     return true;
   } catch (e) {
-    alert('Error al descargar: ' + e.message);
+    dbmAlert('Error al descargar: ' + e.message);
     return false;
   }
 }
@@ -3364,8 +3803,8 @@ var PitchDefs = () => /*#__PURE__*/React.createElement("defs", null, /*#__PURE__
 }))));
 function PitchBg(_ref5) {
   var zone = _ref5.zone;
-  var ln = 'rgba(255,255,255,0.45)',
-    th = 'rgba(255,255,255,0.3)';
+  var ln = 'rgba(255,255,255,0.62)',
+    th = 'rgba(255,255,255,0.42)';
   var gY = 40,
     gL = 303,
     gR = 377,
@@ -3633,9 +4072,10 @@ var Token = React.memo(function Token(_ref6) {
     ),
     // Etiqueta del rol bajo el token
     React.createElement("text", {
-      textAnchor: "middle", y: R + 14, fontSize: 9, fontWeight: "700",
-      fill: hasN ? 'rgba(255,255,255,0.7)' : 'rgba(255,170,0,0.7)',
-      style: { fontFamily: 'inherit', textTransform: 'uppercase', pointerEvents: 'none', textShadow: '0 1px 2px rgba(0,0,0,0.7)' }
+      textAnchor: "middle", y: R + 14, fontSize: 10, fontWeight: "700",
+      fill: hasN ? 'rgba(255,255,255,0.95)' : 'rgba(255,180,0,0.95)',
+      stroke: 'rgba(0,0,0,0.85)', strokeWidth: 2.5, paintOrder: 'stroke',
+      style: { fontFamily: 'inherit', textTransform: 'uppercase', pointerEvents: 'none' }
     }, lbl),
     isSubIn && React.createElement("text", {
       x: -R + 6, y: -R + 8,
@@ -3929,7 +4369,7 @@ function InteractiveCanvas(_ref8) {
     e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
     var c = getCoords(e);
     if (annotTool === 'text') {
-      var txt = window.prompt('Texto de la anotación:', '');
+      window.dbmPrompt('Texto de la anotación:', '').then(function (txt) {
       if (txt && txt.trim()) {
         if (onAddAnnotation) onAddAnnotation({
           type: 'text',
@@ -3939,6 +4379,7 @@ function InteractiveCanvas(_ref8) {
           size: annotSize
         });
       }
+      });
       if (onClearAnnotTool) onClearAnnotTool();
       return;
     }
@@ -4472,6 +4913,7 @@ function BenchPanel(_ref9) {
     );
   };
   return /*#__PURE__*/React.createElement("div", {
+    className: 'dbm-side-roster',
     style: {
       width: 130,
       flexShrink: 0,
@@ -4725,11 +5167,11 @@ function PlayEditorModal(_ref1) {
   var editing = !!play;
   function handleSave() {
     if (!code.trim()) {
-      alert('El código es obligatorio (ej: C1)');
+      dbmAlert('El código es obligatorio (ej: C1)');
       return;
     }
     if (!name.trim()) {
-      alert('El nombre es obligatorio');
+      dbmAlert('El nombre es obligatorio');
       return;
     }
     onSave({
@@ -5012,7 +5454,7 @@ function PlayLibraryModal(props) {
         }
       }, "INSERTAR"),
       /*#__PURE__*/React.createElement("button", {
-        onClick: function() { if (confirm('¿Eliminar de la biblioteca?')) onDelete(it.id); },
+        onClick: function() { dbmConfirm('¿Eliminar de la biblioteca?', { danger: true }).then(function (ok) { if (ok) onDelete(it.id); }); },
         title: "Eliminar de biblioteca",
         style: {
           background: 'transparent', border: '1px solid #2a1a1a',
@@ -5066,7 +5508,7 @@ function RoleEditorModal(_ref10) {
   }
   function handleSave() {
     if (!label.trim()) {
-      alert('La etiqueta es obligatoria');
+      dbmAlert('La etiqueta es obligatoria');
       return;
     }
     var finalKey = roleKey.trim() || "R_".concat(uid().toUpperCase().slice(0, 4));
@@ -5394,7 +5836,7 @@ function RoleEditorModal(_ref10) {
     }
   }, !isNew && onDelete && /*#__PURE__*/React.createElement("button", {
     onClick: () => {
-      if (confirm('¿Eliminar este rol?')) onDelete();
+      dbmConfirm('¿Eliminar este rol?', { danger: true }).then(function (ok) { if (ok) onDelete(); });
     },
     style: {
       background: '#2d0a0a',
@@ -6131,9 +6573,9 @@ function HomeScreen(_ref17) {
         var data = yield exportFullDB_();
         var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         downloadJSON(data, 'dbm_backup_' + ts + '.json');
-        alert('✓ Backup completo descargado');
+        dbmAlert('✓ Backup completo descargado');
       } catch (e) {
-        alert('Error: ' + e.message);
+        dbmAlert('Error: ' + e.message);
       }
     });
     return _handleExport.apply(this, arguments);
@@ -6152,32 +6594,32 @@ function HomeScreen(_ref17) {
         // Detectar tipo automáticamente
         if (data.type === 'dbm_match') {
           // Partido individual
-          if (!confirm('Importar partido:\n\n' +
+          if (!(yield dbmConfirm('Importar partido:\n\n' +
               ((data.home_team && data.home_team.short_name) || '???') + ' vs ' +
               ((data.away_team && data.away_team.short_name) || '???') + '\n\n' +
-              'Se añadirá como nuevo partido. ¿Continuar?')) {
+              'Se añadirá como nuevo partido. ¿Continuar?'))) {
             e.target.value = ''; return;
           }
           var newMid = yield importMatch_(data);
-          alert('✓ Partido importado correctamente.\n\nSe ha añadido a tu lista de partidos.');
+          yield dbmAlert('✓ Partido importado correctamente.\n\nSe ha añadido a tu lista de partidos.');
           location.reload();
         } else if (data.type === 'dbm_full_backup' || data.tables) {
           // Backup completo (nuevo formato o legacy con .tables)
-          var mode = confirm('¿REEMPLAZAR todos los datos por los del backup?\n\nOK = Reemplazar (borra lo actual)\nCancelar = Fusionar (mantiene lo existente)') ? 'replace' : 'merge';
+          var mode = (yield dbmConfirm('¿REEMPLAZAR todos los datos por los del backup?\n\nReemplazar borra lo actual.\nFusionar mantiene lo existente.', { okText: 'Reemplazar', cancelText: 'Fusionar', danger: true })) ? 'replace' : 'merge';
           if (data.type === 'dbm_full_backup') {
             var stats = yield importFullDB_(data, { mode: mode });
-            alert('✓ Backup importado.\n\n' + stats.added + ' añadidos · ' + stats.skipped + ' omitidos\n\nRecargando…');
+            yield dbmAlert('✓ Backup importado.\n\n' + stats.added + ' añadidos · ' + stats.skipped + ' omitidos\n\nRecargando…');
           } else {
             // Legacy
             var n = yield importBackup(file, mode);
-            alert('✓ ' + n + ' registros importados (' + mode + '). Recargando…');
+            yield dbmAlert('✓ ' + n + ' registros importados (' + mode + '). Recargando…');
           }
           location.reload();
         } else {
           throw new Error('Archivo no reconocido. Debe ser un partido o backup DBM.');
         }
       } catch (err) {
-        alert('Error: ' + err.message);
+        dbmAlert('Error: ' + err.message);
       }
       e.target.value = '';
     });
@@ -6185,7 +6627,8 @@ function HomeScreen(_ref17) {
   }
   function handleDeleteMatch(m) {
     var label = (m.homeTeam && m.homeTeam.short_name || '???') + ' vs ' + (m.awayTeam && m.awayTeam.short_name || '???');
-    if (!confirm('¿Eliminar el partido ' + label + '?\n\nSe borrarán también:\n· Alineación y cambios\n· Jugadas y asignaciones\n· Marcajes y eventos\n\nEsta acción no se puede deshacer.')) return;
+    dbmConfirm('¿Eliminar el partido ' + label + '?\n\nSe borrarán también:\n· Alineación y cambios\n· Jugadas y asignaciones\n· Marcajes y eventos\n\nEsta acción no se puede deshacer.', { danger: true }).then(function (ok) {
+    if (!ok) return;
     var mid = m.id;
     Promise.all([
       db.matches.delete(mid),
@@ -6200,7 +6643,8 @@ function HomeScreen(_ref17) {
     ]).then(function() {
       setMatches(function(prev) { return prev.filter(function(x) { return x.id !== mid; }); });
     }).catch(function(err) {
-      alert('Error eliminando: ' + err.message);
+      dbmAlert('Error eliminando: ' + err.message);
+    });
     });
   }
   var live = matches.filter(m => m.status === 'live'),
@@ -6280,18 +6724,17 @@ function HomeScreen(_ref17) {
       title: info ? ('Último export: hace ' + daysAgo + ' días' + (snap ? ' · Snapshot interno: ' + new Date(snap.at).toLocaleString('es-ES') : '')) : ('Snapshot interno: ' + new Date(snap.at).toLocaleString('es-ES') + ' · Nunca has hecho un export manual'),
       style: {
         fontSize: 9,
-        color: warn ? '#F9A826' : '#39FF14',
+        color: warn ? '#F9A826' : '#2e7d32',
         fontWeight: 700,
         letterSpacing: 1,
-        padding: '3px 8px',
-        background: warn ? '#F9A82618' : '#39FF1418',
-        border: '1px solid ' + (warn ? '#F9A82644' : '#39FF1444'),
+        padding: warn ? '3px 8px' : '3px 4px',
+        background: warn ? '#F9A82618' : 'transparent',
+        border: '1px solid ' + (warn ? '#F9A82644' : 'transparent'),
         borderRadius: 3,
         marginLeft: 4
       }
-    }, warn ? '⚠ ' : '✓ ',
-       info ? (daysAgo === 0 ? 'BACKUP HOY' : daysAgo === 1 ? 'BACKUP AYER' : 'BACKUP -' + daysAgo + 'D')
-            : 'SIN EXPORT');
+    }, warn ? '⚠ ' : '✓',
+       warn ? (info ? 'BACKUP -' + daysAgo + 'D' : 'SIN EXPORT') : null);
   })(), /*#__PURE__*/React.createElement("div", {
     style: {
       marginLeft: 'auto',
@@ -6436,7 +6879,7 @@ function HomeScreen(_ref17) {
       marginTop: 4
     }
   }, /*#__PURE__*/React.createElement("div", {
-    style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10, flexWrap: 'wrap' }
+    style: { display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 14, marginBottom: 10, flexWrap: 'wrap' }
   },
     React.createElement("div", { style: { fontSize: 9, color: '#39FF14', fontWeight: 700, letterSpacing: 3 } }, "LIGA"),
     React.createElement("select", {
@@ -6559,10 +7002,10 @@ function MatchCard(_ref21) {
         onClick: e => { e.stopPropagation(); onDelete(m); },
         title: "Eliminar partido",
         style: {
-          background: 'transparent', border: '1px solid #2a2a3a',
-          color: '#3a3a4a', borderRadius: 4,
-          padding: '5px 9px', fontSize: 14, cursor: 'pointer',
-          lineHeight: 1
+          background: 'transparent', border: '1px solid #1c1c2e',
+          color: '#2e2e46', borderRadius: 4,
+          padding: '4px 8px', fontSize: 12, cursor: 'pointer',
+          lineHeight: 1, marginRight: 6
         }
       }, "\u00D7"),
       /*#__PURE__*/React.createElement("span", {
@@ -8549,7 +8992,7 @@ function MatchDayScreen(_ref28) {
   }
   function _handleDeletePlay() {
     _handleDeletePlay = _asyncToGenerator(function* (playId) {
-      if (!confirm('¿Eliminar esta jugada y todas sus asignaciones?')) return;
+      if (!(yield dbmConfirm('¿Eliminar esta jugada y todas sus asignaciones?', { danger: true }))) return;
       yield deletePlay(playId, matchId);
       var remaining = plays.filter(p => p.id !== playId);
       setPlays(remaining);
@@ -8875,7 +9318,8 @@ function MatchDayScreen(_ref28) {
   function clearAnnotations() {
     var play = plays.find(p => p.id === pid);
     if (!play) return;
-    if (!confirm('¿Eliminar todas las anotaciones de esta jugada?')) return;
+    dbmConfirm('¿Eliminar todas las anotaciones de esta jugada?', { danger: true }).then(function (ok) {
+    if (!ok) return;
     pushUndo();
     var newPlay = _objectSpread(_objectSpread({}, play), {}, {
       canvas_data: _objectSpread(_objectSpread({}, play.canvas_data), {}, {
@@ -8884,6 +9328,7 @@ function MatchDayScreen(_ref28) {
     });
     savePlay(newPlay);
     setPlays(p => p.map(x => x.id === pid ? newPlay : x));
+    });
   }
   function toggleBall() {
     return _toggleBall.apply(this, arguments);
@@ -9431,7 +9876,8 @@ function MatchDayScreen(_ref28) {
     return _handleUndo.apply(this, arguments);
   }
   function undoSpecificSub(subId) {
-    if (!confirm('¿Deshacer este cambio?')) return;
+    dbmConfirm('¿Deshacer este cambio?').then(function (ok) {
+    if (!ok) return;
     var ls = subs.find(function(s) { return s.id === subId; });
     if (!ls) return;
     (function() {
@@ -9463,6 +9909,7 @@ function MatchDayScreen(_ref28) {
       });
       _undoOne();
     })();
+    });
   }
   function handleMark(_x54, _x55) {
     return _handleMark.apply(this, arguments);
@@ -9549,7 +9996,7 @@ function MatchDayScreen(_ref28) {
         }
         var nameA = (sA.player && sA.player.name) || '#' + ((sA.player && sA.player.squad_number) || '?');
         var nameB = (sB.player && sB.player.name) || '#' + ((sB.player && sB.player.squad_number) || '?');
-        if (!confirm('¿Intercambiar ' + nameA + ' ↔ ' + nameB + ' en todas las jugadas? También cambia titulares/suplentes.')) return;
+        if (!(yield dbmConfirm('¿Intercambiar ' + nameA + ' ↔ ' + nameB + ' en todas las jugadas? También cambia titulares/suplentes.'))) return;
         yield db.transaction('rw', [db.lineups, db.assignments, db.markings], _asyncToGenerator(function* () {
           // Intercambio de roles en lineup
           yield db.lineups.update(sA.id, { role: sB.role });
@@ -9591,7 +10038,7 @@ function MatchDayScreen(_ref28) {
         if (!rA || !rB) { toast('Jugador no encontrado'); return; }
         var nameA = rA.name || '#' + (rA.squad_number || '?');
         var nameB = rB.name || '#' + (rB.squad_number || '?');
-        if (!confirm('¿Intercambiar rival ' + nameA + ' ↔ ' + nameB + ' en todas las jugadas y marcajes? También cambia su rol titular/suplente.')) return;
+        if (!(yield dbmConfirm('¿Intercambiar rival ' + nameA + ' ↔ ' + nameB + ' en todas las jugadas y marcajes? También cambia su rol titular/suplente.'))) return;
         yield db.transaction('rw', [db.rival_assignments, db.markings, db.rival_players], _asyncToGenerator(function* () {
           // Cargar todas las asignaciones rival del partido y filtrar en memoria
           var allRA = yield db.rival_assignments.where('match_id').equals(matchId).toArray();
@@ -9696,7 +10143,7 @@ function MatchDayScreen(_ref28) {
   function _handleFinish() {
     _handleFinish = _asyncToGenerator(function* () {
       var _score$home2, _score$away2;
-      if (!confirm('¿Finalizar el partido?')) return;
+      if (!(yield dbmConfirm('¿Finalizar el partido?', { okText: 'Finalizar' }))) return;
       yield db.matches.update(matchId, {
         status: 'finished',
         home_score: (_score$home2 = score.home) !== null && _score$home2 !== void 0 ? _score$home2 : 0,
@@ -9751,6 +10198,7 @@ function MatchDayScreen(_ref28) {
       position: 'relative'
     }
   }, /*#__PURE__*/React.createElement("div", {
+    className: 'dbm-match-top',
     style: {
       background: '#09091a',
       borderBottom: '1px solid #12122a',
@@ -9966,7 +10414,7 @@ function MatchDayScreen(_ref28) {
       setRivSubMod({ open: true, outId: null, inId: null });
     },
     title: "Cambio rival",
-    style: { background: '#E63946', color: 'white', border: 'none', borderRadius: 5, padding: '9px 14px', fontSize: 12, fontWeight: 900, cursor: 'pointer', marginLeft: 4 }
+    style: { background: 'transparent', color: '#E63946', border: '1px solid #E6394688', borderRadius: 5, padding: '8px 13px', fontSize: 12, fontWeight: 900, cursor: 'pointer', marginLeft: 4 }
   }, "\u21C4 RIVAL"), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       exportMatch_(matchId).then(function(data) {
@@ -9975,7 +10423,7 @@ function MatchDayScreen(_ref28) {
         var ts = new Date().toISOString().slice(0, 10);
         downloadJSON(data, 'dbm_partido_' + hs + '_vs_' + as + '_' + ts + '.json');
         toast('Partido exportado ✓', 'ok');
-      }).catch(function(err) { alert('Error: ' + err.message); });
+      }).catch(function(err) { dbmAlert('Error: ' + err.message); });
     },
     title: "Exportar este partido (para tablet u otro dispositivo)",
     style: {
@@ -10021,6 +10469,7 @@ function MatchDayScreen(_ref28) {
     canSub: canSub,
     markMap: markMap
   }), !presentMode && /*#__PURE__*/React.createElement("div", {
+    className: 'dbm-side-plays',
     style: {
       width: 140,
       flexShrink: 0,
@@ -10715,7 +11164,7 @@ active && /*#__PURE__*/React.createElement("button", {
       }
     }, "\u203A"), curPhases.length > 1 && active && /*#__PURE__*/React.createElement("button", {
       onClick: () => {
-        if (confirm("\xBFEliminar ".concat(ph.name, "?"))) deletePhase(ph.id);
+        dbmConfirm("\xBFEliminar ".concat(ph.name, "?"), { danger: true }).then(function (ok) { if (ok) deletePhase(ph.id); });
       },
       title: "Eliminar fase",
       style: {
@@ -11681,7 +12130,7 @@ function LeaguesScreen(props) {
 
   function handleNew() {
     if (dbmFreeLocked()) { toast('🔒 Versión Pro: actualiza para crear tus propias ligas y equipos'); return; }
-    var name = prompt('Nombre de la nueva liga:');
+    dbmPrompt('Nombre de la nueva liga:').then(function (name) {
     if (!name) return;
     var newId = null;
     createLeague({ name: name }).then(function(id) {
@@ -11692,13 +12141,14 @@ function LeaguesScreen(props) {
       toast('Liga creada', 'ok');
       if (newId) onEditLeague(newId);
     });
+    });
   }
   function handleDelete(l) {
-    if (l.id === 'hypermotion-2025-26') {
-      if (!confirm('La liga Hypermotion incluye los 22 equipos preinstalados. ¿Eliminar de todas formas? (Tus partidos en esta liga se mantendrán pero sin equipos.)')) return;
-    } else {
-      if (!confirm('¿Eliminar la liga "' + l.name + '" y todos sus equipos? Acción irreversible.')) return;
-    }
+    var msg = l.id === 'hypermotion-2025-26'
+      ? 'La liga Hypermotion incluye los 22 equipos preinstalados. ¿Eliminar de todas formas? (Tus partidos en esta liga se mantendrán pero sin equipos.)'
+      : '¿Eliminar la liga "' + l.name + '" y todos sus equipos? Acción irreversible.';
+    dbmConfirm(msg, { danger: true }).then(function (ok) {
+    if (!ok) return;
     deleteLeague(l.id).then(function() {
       if (currentId === l.id) {
         setCurrentLeagueId('hypermotion-2025-26');
@@ -11707,6 +12157,7 @@ function LeaguesScreen(props) {
       toast('Liga eliminada', 'ok');
       return load();
     }).catch(function(e) { toast('Error: ' + e.message); });
+    });
   }
   function handleActivate(id) {
     setCurrentLeagueId(id);
@@ -11836,15 +12287,18 @@ function LeagueEditScreen(props) {
 
   function handleNewTeam() {
     if (dbmFreeLocked()) { toast('🔒 Versión Pro: actualiza para crear tus propios equipos'); return; }
-    var name = prompt('Nombre del nuevo equipo:');
-    if (!name) return;
-    createTeamInLeague(leagueId, { name: name }).then(function() { return load(); });
+    dbmPrompt('Nombre del nuevo equipo:').then(function (name) {
+      if (!name) return;
+      createTeamInLeague(leagueId, { name: name }).then(function() { return load(); });
+    });
   }
   function handleDeleteTeam(t) {
-    if (!confirm('¿Eliminar "' + t.name + '" y toda su plantilla?')) return;
-    deleteTeamFromLeague(t.id).then(function() {
-      if (league && league.own_team_id === t.id) saveField('own_team_id', null);
-      return load();
+    dbmConfirm('¿Eliminar "' + t.name + '" y toda su plantilla?', { danger: true }).then(function (ok) {
+      if (!ok) return;
+      deleteTeamFromLeague(t.id).then(function() {
+        if (league && league.own_team_id === t.id) saveField('own_team_id', null);
+        return load();
+      });
     });
   }
   function handleSetOwnTeam(t) {
@@ -11979,10 +12433,11 @@ function SquadEditorScreen(_ref37) {
   function resyncCurrentTeam() {
     if (!selId) return;
     if (!REAL_SQUADS[selId]) {
-      alert('No hay datos oficiales precargados para este equipo todavía.');
+      dbmAlert('No hay datos oficiales precargados para este equipo todavía.');
       return;
     }
-    if (!confirm('¿Resincronizar plantilla oficial del equipo seleccionado?\n\nSe insertarán/actualizarán los jugadores reales.\nLas alineaciones de partidos pasados quedan intactas.')) return;
+    dbmConfirm('¿Resincronizar plantilla oficial del equipo seleccionado?\n\nSe insertarán/actualizarán los jugadores reales.\nLas alineaciones de partidos pasados quedan intactas.', { okText: 'Resincronizar' }).then(function (ok) {
+    if (!ok) return;
     var realPlayers = REAL_SQUADS[selId];
     var realIds = new Set(realPlayers.map(function(p) { return selId + '_' + String(p.num).padStart(2, '0'); }));
     db.assignments.toArray().then(function(asgns) {
@@ -12017,9 +12472,10 @@ function SquadEditorScreen(_ref37) {
       return getSquad(selId);
     }).then(function(arr) {
       setPls(arr);
-      alert('✓ Plantilla resincronizada (' + REAL_SQUADS[selId].length + ' jugadores)');
+      dbmAlert('✓ Plantilla resincronizada (' + REAL_SQUADS[selId].length + ' jugadores)');
     }).catch(function(err) {
-      alert('Error: ' + err.message);
+      dbmAlert('Error: ' + err.message);
+    });
     });
   }
   function _upd() {
@@ -12035,7 +12491,7 @@ function SquadEditorScreen(_ref37) {
       if (f === 'squad_number') {
         var dup = pls.find(p => p.id !== id && p.squad_number === cv);
         if (dup) {
-          alert("Dorsal #".concat(cv, " ya est\xE1 asignado a ").concat(dup.name || 'otro jugador'));
+          dbmAlert("Dorsal #".concat(cv, " ya est\xE1 asignado a ").concat(dup.name || 'otro jugador'));
           return;
         }
       }
@@ -12071,7 +12527,7 @@ function SquadEditorScreen(_ref37) {
           var dataUrl = canvas.toDataURL('image/jpeg', 0.82);
           upd(playerId, 'photo', dataUrl);
         };
-        img.onerror = function() { alert('No se pudo leer la imagen'); };
+        img.onerror = function() { dbmAlert('No se pudo leer la imagen'); };
         img.src = ev.target.result;
       };
       reader.readAsDataURL(file);
@@ -12106,23 +12562,25 @@ function SquadEditorScreen(_ref37) {
         // PNG conserva transparencia del escudo
         persist(canvas.toDataURL('image/png'));
       };
-      img.onerror = function() { alert('No se pudo leer la imagen'); };
+      img.onerror = function() { dbmAlert('No se pudo leer la imagen'); };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   }
   function clearTeamLogo(teamId) {
-    if (!confirm('¿Eliminar escudo del equipo?')) return;
-    db.teams.update(teamId, { logo: null }).then(function() {
-      setTeams(function(prev) { return prev.map(function(t) { return t.id === teamId ? Object.assign({}, t, { logo: null }) : t; }); });
+    dbmConfirm('¿Eliminar escudo del equipo?', { danger: true }).then(function (ok) {
+      if (!ok) return;
+      db.teams.update(teamId, { logo: null }).then(function() {
+        setTeams(function(prev) { return prev.map(function(t) { return t.id === teamId ? Object.assign({}, t, { logo: null }) : t; }); });
+      });
     });
   }
   function setTeamLogoFromUrl(teamId) {
-    var url = prompt('Pega la URL del escudo:\n\nEjemplo: https://...\n\nConsejo: clic derecho sobre el escudo en la web oficial → "Copiar dirección de imagen"');
+    dbmPrompt('Pega la URL del escudo.\n\nConsejo: clic derecho sobre el escudo en la web oficial → "Copiar dirección de imagen"', '').then(function (url) {
     if (!url) return;
     url = url.trim();
     if (!/^https?:\/\//i.test(url)) {
-      alert('La URL debe empezar por http:// o https://');
+      dbmAlert('La URL debe empezar por http:// o https://');
       return;
     }
     // Validar que la imagen carga antes de guardar
@@ -12156,9 +12614,10 @@ function SquadEditorScreen(_ref37) {
       }
     };
     testImg.onerror = function() {
-      alert('No se pudo cargar la imagen desde esa URL.\n\nVerifica:\n- La URL apunta directamente al archivo (.png, .jpg, .svg)\n- La web permite acceso externo\n- No requiere login');
+      dbmAlert('No se pudo cargar la imagen desde esa URL.\n\nVerifica:\n- La URL apunta directamente al archivo (.png, .jpg, .svg)\n- La web permite acceso externo\n- No requiere login');
     };
     testImg.src = url;
+    });
   }
   function hk(e, id, f, i) {
     if (e.key === 'Enter' || e.key === 'Tab') {
@@ -12558,7 +13017,7 @@ function SquadEditorScreen(_ref37) {
     }),
     title: "Pega una URL de imagen del jugador"
   }), p.photo && /*#__PURE__*/React.createElement("button", {
-    onClick: () => { if (confirm('¿Eliminar foto de ' + (p.name || 'este jugador') + '?')) upd(p.id, 'photo', ''); },
+    onClick: () => { dbmConfirm('¿Eliminar foto de ' + (p.name || 'este jugador') + '?', { danger: true }).then(function (ok) { if (ok) upd(p.id, 'photo', ''); }); },
     style: {
       background: 'transparent', border: 'none', color: '#3a3a4a',
       cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1
@@ -12568,9 +13027,9 @@ function SquadEditorScreen(_ref37) {
 /*#__PURE__*/React.createElement("td", { style: { padding: "2px 6px", whiteSpace: "nowrap" } },
   /*#__PURE__*/React.createElement("button", {
     onClick: function() {
-      if (confirm("¿Eliminar a " + (p.name || "jugador #" + p.squad_number) + "?")) {
-        db.players.delete(p.id).then(function() { getSquad(selId).then(setPls); });
-      }
+      dbmConfirm("¿Eliminar a " + (p.name || "jugador #" + p.squad_number) + "?", { danger: true }).then(function (ok) {
+        if (ok) db.players.delete(p.id).then(function() { getSquad(selId).then(setPls); });
+      });
     },
     title: "Eliminar jugador",
     style: { background: "#C6282822", border: "1px solid #C62828", color: "#FF5252", cursor: "pointer", fontSize: 11, fontWeight: 900, borderRadius: 5, padding: "5px 14px", letterSpacing: 1 }
@@ -12670,7 +13129,7 @@ class ErrorBoundary extends React.Component {
         }
       }, "RECARGAR"), /*#__PURE__*/React.createElement("button", {
         onClick: /*#__PURE__*/_asyncToGenerator(function* () {
-          if (confirm('Esto borrará TODA la BD local. ¿Seguro?')) {
+          if (yield dbmConfirm('Esto borrará TODA la BD local. ¿Seguro?', { danger: true })) {
             try {
               yield Dexie.delete('DBMProV2');
             } catch (e) { console.warn('DBM:', e); }
@@ -12807,7 +13266,7 @@ function App() {
     }
   }, "Probablemente la BD local est\xE1 bloqueada (otra pesta\xF1a abierta) o tiene datos corruptos. Cierra otras pesta\xF1as con DBM o resetea la BD:"), /*#__PURE__*/React.createElement("button", {
     onClick: /*#__PURE__*/_asyncToGenerator(function* () {
-      if (confirm('Esto borrará TODA la BD local (partidos, jugadas, plantillas editadas). ¿Continuar?')) {
+      if (yield dbmConfirm('Esto borrará TODA la BD local (partidos, jugadas, plantillas editadas). ¿Continuar?', { danger: true })) {
         try {
           yield Dexie.delete('DBMProV2');
         } catch (e) { console.warn('DBM:', e); }
@@ -12860,7 +13319,7 @@ function App() {
     }
   }, "RECARGAR"), /*#__PURE__*/React.createElement("button", {
     onClick: /*#__PURE__*/_asyncToGenerator(function* () {
-      if (confirm('Borrar BD local?')) {
+      if (yield dbmConfirm('Borrar BD local?', { danger: true })) {
         try {
           yield Dexie.delete('DBMProV2');
         } catch (e) { console.warn('DBM:', e); }
@@ -13119,7 +13578,8 @@ if('serviceWorker' in navigator){
   // ───────────────── BORRADO DE CUENTA (obligatorio en Google Play) ─────────────────
   function deleteAccount(){
     if(!currentUser) return;
-    if(!window.confirm('¿Eliminar tu cuenta y TODOS tus datos en la nube? Esta acción no se puede deshacer.')) return;
+    window.dbmConfirm('¿Eliminar tu cuenta y TODOS tus datos en la nube? Esta acción no se puede deshacer.', { danger: true, okText: 'Eliminar cuenta' }).then(function (ok) {
+    if (!ok) return;
     setStatus('Eliminando cuenta…');
     var uid=currentUser.uid;
     var delDoc = dbfs ? dbfs.collection(COLLECTION).doc(uid).delete().catch(function(){}) : Promise.resolve();
@@ -13135,6 +13595,7 @@ if('serviceWorker' in navigator){
           try{ auth.signOut(); }catch(_){}
         } else setStatus('Error al eliminar: '+m,'#f88');
       });
+    });
   }
 
   // ───────────────── MURO DE ENTRADA (solo si REQUIRE_LOGIN=true) ─────────────────
