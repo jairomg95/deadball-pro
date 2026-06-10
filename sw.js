@@ -1,4 +1,4 @@
-// Service worker de DeadBall Manager PRO.
+// Service worker de DeadBall Manager PRO. (build v12)
 // - Cachea el "shell" de la app (para abrir sin conexión).
 // - Cachea las imágenes remotas (escudos/fotos) tras la primera carga -> offline.
 const CACHE = 'dbm-pro-v12';
