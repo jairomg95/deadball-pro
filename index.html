@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="DBM PRO"/>
@@ -91,6 +91,7 @@
   }
   function showInstallBanner() {
     try {
+      if (document.querySelector('[aria-label="Tutorial de bienvenida"]')) { setTimeout(showInstallBanner, 3000); return; }
       if (isStandalone()) return;
       if (localStorage.getItem('dbm_install_banner_dismissed') === '1') return;
       if (document.getElementById('dbm-install-banner')) return;
@@ -555,6 +556,114 @@ textarea{font-family:inherit;resize:none}
 <link rel="manifest" href="manifest.webmanifest"/>
 <link rel="icon" href="icon-192.png"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
+<script>
+/* Accesibilidad (v13): aria-label automático en botones de solo icono. */
+(function () {
+  'use strict';
+  var MAP = {
+    '\u2190': 'Volver',
+    '\u00D7': 'Eliminar',
+    '\u2715': 'Cerrar',
+    '\u2713': 'Confirmar',
+    '\u2601': 'Nube y sincronizaci\u00F3n',
+    '\uD83D\uDCE4': 'Exportar partido',
+    '\uD83D\uDDD1': 'Eliminar'
+  };
+  function tag() {
+    try {
+      var bs = document.querySelectorAll('button:not([aria-label])');
+      for (var i = 0; i < bs.length; i++) {
+        var t = (bs[i].textContent || '').trim();
+        if (MAP[t]) bs[i].setAttribute('aria-label', MAP[t]);
+        else if (bs[i].title) bs[i].setAttribute('aria-label', bs[i].title);
+      }
+    } catch (e) {}
+  }
+  setInterval(tag, 2000);
+})();
+</script>
+<script>
+/* ============================================================
+   TUTORIAL DE BIENVENIDA (v13): 4 pasos, solo la primera vez.
+   Módulo DOM independiente. Se recuerda en localStorage.
+   ============================================================ */
+(function () {
+  'use strict';
+  var KEY = 'dbm_onboarding_done';
+  try { if (localStorage.getItem(KEY) === '1') return; } catch (e) {}
+  var STEPS = [
+    { icon: '\u2B21', title: 'BIENVENIDO A DBM PRO',
+      text: 'La pizarra t\u00E1ctica para preparar el bal\u00F3n parado de tu equipo: c\u00F3rners, faltas y penaltis. Funciona sin conexi\u00F3n, pensada para usarla a pie de campo.' },
+    { icon: '\u26BD', title: 'PREPARA TU PARTIDO',
+      text: 'Pulsa PARTIDO \u2192 + NUEVO PARTIDO. Eliges los dos equipos, montas el once y el banquillo (tuyo y del rival) y ya tienes la pizarra lista.' },
+    { icon: '\u270F', title: 'DISE\u00D1A TUS JUGADAS',
+      text: 'Arrastra las fichas sobre el campo, a\u00F1ade fases para ver el movimiento, y usa los botones flotantes: \u2934 comparte la jugada como imagen y \u2600 activa el modo sol para verla con luz directa.' },
+    { icon: '\u2601', title: 'NO PIERDAS TU TRABAJO',
+      text: 'Instala la app (A\u00F1adir a pantalla de inicio) y activa la nube con el bot\u00F3n \u2601 para que tus plantillas y jugadas queden a salvo y se sincronicen entre dispositivos.' }
+  ];
+  var idx = 0, ov = null;
+  function done() {
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+    if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
+  }
+  function render() {
+    var st = STEPS[idx];
+    ov.innerHTML = '';
+    var card = document.createElement('div');
+    card.style.cssText = 'width:100%;max-width:340px;background:linear-gradient(180deg,#10101f,#0a0a16);' +
+      'border:1px solid rgba(57,255,20,0.28);border-radius:18px;padding:28px 24px 20px;text-align:center;' +
+      'box-shadow:0 18px 50px rgba(0,0,0,0.7);animation:dbmPop .18s ease both;color:#dde1f0;' +
+      "font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif";
+    var ic = document.createElement('div');
+    ic.textContent = st.icon;
+    ic.style.cssText = 'font-size:44px;margin-bottom:14px;color:#39FF14';
+    card.appendChild(ic);
+    var h = document.createElement('div');
+    h.textContent = st.title;
+    h.style.cssText = 'font-size:17px;font-weight:900;letter-spacing:2px;color:#39FF14;margin-bottom:10px';
+    card.appendChild(h);
+    var p = document.createElement('div');
+    p.textContent = st.text;
+    p.style.cssText = 'font-size:14px;line-height:1.5;color:#c9cde0;margin-bottom:18px;min-height:84px';
+    card.appendChild(p);
+    var dots = document.createElement('div');
+    dots.style.cssText = 'display:flex;justify-content:center;gap:7px;margin-bottom:18px';
+    for (var i = 0; i < STEPS.length; i++) {
+      var d = document.createElement('div');
+      d.style.cssText = 'width:8px;height:8px;border-radius:50%;background:' + (i === idx ? '#39FF14' : '#22223a');
+      dots.appendChild(d);
+    }
+    card.appendChild(dots);
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:10px;justify-content:space-between;align-items:center';
+    var skip = document.createElement('button');
+    skip.textContent = 'SALTAR';
+    skip.style.cssText = 'background:transparent;color:#6a6e8e;border:none;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;padding:10px 6px;font-family:inherit';
+    skip.onclick = done;
+    row.appendChild(skip);
+    var next = document.createElement('button');
+    var last = idx === STEPS.length - 1;
+    next.textContent = last ? 'EMPEZAR' : 'SIGUIENTE \u2192';
+    next.style.cssText = 'background:#39FF14;color:#04140a;border:none;border-radius:10px;padding:12px 22px;font-size:13px;font-weight:900;letter-spacing:1px;cursor:pointer;font-family:inherit;box-shadow:0 0 18px rgba(57,255,20,0.3)';
+    next.onclick = function () { if (last) done(); else { idx++; render(); } };
+    row.appendChild(next);
+    card.appendChild(row);
+    ov.appendChild(card);
+  }
+  function show() {
+    if (ov) return;
+    ov = document.createElement('div');
+    ov.setAttribute('role', 'dialog');
+    ov.setAttribute('aria-label', 'Tutorial de bienvenida');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99980;display:flex;align-items:center;justify-content:center;' +
+      'background:rgba(3,3,8,0.82);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);padding:20px;animation:dbmFadeIn .25s ease both';
+    render();
+    document.body.appendChild(ov);
+  }
+  if (document.readyState === 'complete') setTimeout(show, 1200);
+  else window.addEventListener('load', function () { setTimeout(show, 1200); });
+})();
+</script>
 </head>
 <body><div id="root"></div>
 <script>
@@ -6874,7 +6983,11 @@ function HomeScreen(_ref17) {
     style: {
       fontSize: 12
     }
-  }, "Pulsa \"+ NUEVO PARTIDO\" para empezar")), /*#__PURE__*/React.createElement("div", {
+  }, "Prepara tu primer partido: equipos, alineaciones y jugadas de bal\xF3n parado"), /*#__PURE__*/React.createElement("button", {
+    onClick: onNewMatch,
+    className: 'dbm-pop',
+    style: { marginTop: 18, background: '#39FF14', color: '#04140a', border: 'none', borderRadius: 10, padding: '14px 26px', fontSize: 15, fontWeight: 900, letterSpacing: 1, cursor: 'pointer', boxShadow: '0 0 24px rgba(57,255,20,0.35)' }
+  }, "+ CREAR MI PRIMER PARTIDO")), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 4
     }
@@ -11744,14 +11857,37 @@ function PostMatchScreen(_ref32) {
     saved = _useState120[0],
     setSaved = _useState120[1];
   var saveRef = useRef(null);
-  var homeTeam = TEAMS.find(t => t.id === (match === null || match === void 0 ? void 0 : match.home_team_id));
-  var awayTeam = TEAMS.find(t => t.id === (match === null || match === void 0 ? void 0 : match.away_team_id));
+  var _pmPlays = useState([]); var pmPlays = _pmPlays[0]; var setPmPlays = _pmPlays[1];
+  var _pmTeams = useState({}); var pmTeams = _pmTeams[0]; var setPmTeams = _pmTeams[1];
+  var _pmSel = useState(null); var selPid = _pmSel[0]; var setSelPid = _pmSel[1];
+  var _pmAsg = useState({ own: {}, riv: {} }); var pmAsgn = _pmAsg[0]; var setPmAsgn = _pmAsg[1];
+  var _pmPh = useState(null); var pmPhase = _pmPh[0]; var setPmPhase = _pmPh[1];
+  function openPlayBoard(p) {
+    if (selPid === p.id) { setSelPid(null); return; }
+    var phs = (p.canvas_data && p.canvas_data.phases) || [];
+    setPmPhase(phs.length ? phs[0].id : null);
+    setPmAsgn({ own: {}, riv: {} });
+    setSelPid(p.id);
+    Promise.all([getAssignments(matchId, p.id, null), getRivalAssignments(matchId, p.id)]).then(function (r) {
+      setPmAsgn({ own: r[0] || {}, riv: r[1] || {} });
+    }).catch(function () {});
+  }
+  var homeTeam = pmTeams.home || TEAMS.find(t => t.id === (match === null || match === void 0 ? void 0 : match.home_team_id));
+  var awayTeam = pmTeams.away || TEAMS.find(t => t.id === (match === null || match === void 0 ? void 0 : match.away_team_id));
   useEffect(() => {
-    Promise.all([db.matches.get(matchId), db.substitutions.where('match_id').equals(matchId).sortBy('minute')]).then(/*#__PURE__*/function () {
+    Promise.all([db.matches.get(matchId), db.substitutions.where('match_id').equals(matchId).sortBy('minute'), db.plays.where('match_id').equals(matchId).toArray()]).then(/*#__PURE__*/function () {
       var _ref34 = _asyncToGenerator(function* (_ref33) {
-        var _ref35 = _slicedToArray(_ref33, 2),
+        var _ref35 = _slicedToArray(_ref33, 3),
           m = _ref35[0],
           subLog = _ref35[1];
+        var playsArr = _ref35[2] || [];
+        playsArr.sort(function (a, b) { return String(a.code || '').localeCompare(String(b.code || '')); });
+        setPmPlays(playsArr);
+        if (m) {
+          db.teams.bulkGet([m.home_team_id, m.away_team_id]).then(function (tt) {
+            setPmTeams({ home: tt && tt[0], away: tt && tt[1] });
+          }).catch(function () {});
+        }
         setMatch(m);
         setNotes((m === null || m === void 0 ? void 0 : m.notes) || '');
         var ids = [...new Set([...subLog.map(s => s.player_out_id), ...subLog.map(s => s.player_in_id)])];
@@ -11904,8 +12040,8 @@ function PostMatchScreen(_ref32) {
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       gridColumn: '1/-1',
-      background: '#0e0e1a',
-      border: '1px solid #1a1a2e',
+      background: 'linear-gradient(120deg, ' + (((homeTeam === null || homeTeam === void 0 ? void 0 : homeTeam.color) || '#39FF14') + '1c') + ' 0%, #0e0e1a 32%, #0e0e1a 68%, ' + (((awayTeam === null || awayTeam === void 0 ? void 0 : awayTeam.color) || '#39FF14') + '1c') + ' 100%)',
+      border: '1px solid #1f1f33',
       borderRadius: 10,
       padding: 20
     }
@@ -11917,7 +12053,7 @@ function PostMatchScreen(_ref32) {
       letterSpacing: 3,
       marginBottom: 12
     }
-  }, "RESULTADO FINAL"), /*#__PURE__*/React.createElement("div", {
+  }, "RESULTADO FINAL \u00B7 " + fmtDate(match.date)), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -11928,7 +12064,9 @@ function PostMatchScreen(_ref32) {
     style: {
       textAlign: 'center'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, homeTeam && /*#__PURE__*/React.createElement("div", { style: { display: 'flex', justifyContent: 'center', marginBottom: 8 } },
+    /*#__PURE__*/React.createElement(TeamLogo, { team: homeTeam, size: 54 })
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 20,
       fontWeight: 900,
@@ -11936,11 +12074,13 @@ function PostMatchScreen(_ref32) {
     }
   }, homeTeam === null || homeTeam === void 0 ? void 0 : homeTeam.name), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 11,
-      color: '#3a3a5a',
-      marginTop: 2
+      fontSize: 9,
+      color: '#4a4a6a',
+      marginTop: 3,
+      letterSpacing: 2,
+      fontWeight: 700
     }
-  }, fmtDate(match.date))), /*#__PURE__*/React.createElement("div", {
+  }, "LOCAL")), /*#__PURE__*/React.createElement("div", {
     style: {
       fontFamily: "'DBMono','Courier New',monospace",
       fontWeight: 900,
@@ -11957,7 +12097,9 @@ function PostMatchScreen(_ref32) {
     style: {
       textAlign: 'center'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, awayTeam && /*#__PURE__*/React.createElement("div", { style: { display: 'flex', justifyContent: 'center', marginBottom: 8 } },
+    /*#__PURE__*/React.createElement(TeamLogo, { team: awayTeam, size: 54 })
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 20,
       fontWeight: 900,
@@ -11965,11 +12107,13 @@ function PostMatchScreen(_ref32) {
     }
   }, awayTeam === null || awayTeam === void 0 ? void 0 : awayTeam.name), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 11,
-      color: '#3a3a5a',
-      marginTop: 2
+      fontSize: 9,
+      color: '#4a4a6a',
+      marginTop: 3,
+      letterSpacing: 2,
+      fontWeight: 700
     }
-  }, "LaLiga Hypermotion")))), /*#__PURE__*/React.createElement("div", {
+  }, "VISITANTE")))), /*#__PURE__*/React.createElement("div", {
     style: {
       background: '#0e0e1a',
       border: '1px solid #1a1a2e',
@@ -12098,6 +12242,65 @@ function PostMatchScreen(_ref32) {
       lineHeight: 1.5,
       outline: 'none'
     }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: { gridColumn: '1/-1', background: '#0e0e1a', border: '1px solid #1a1a2e', borderRadius: 10, padding: 16 }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 9, color: '#3a3a5a', fontWeight: 700, letterSpacing: 3, marginBottom: 12 }
+  }, "JUGADAS DEL PARTIDO (", pmPlays.length, ")"),
+  pmPlays.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: { color: '#2a2a4a', fontSize: 12 }
+  }, "Sin jugadas guardadas en este partido"),
+  pmPlays.map(function (p) {
+    var pcol = p.color || '#39FF14';
+    var pt = PLAY_TYPES.find(function (t) { return t.id === p.play_type; });
+    var cd = p.canvas_data || {};
+    var nPhases = (cd.phases && cd.phases.length) || 1;
+    var nRoles = (cd.roles && cd.roles.length) || 0;
+    return /*#__PURE__*/React.createElement(React.Fragment, { key: p.id }, /*#__PURE__*/React.createElement("div", {
+      onClick: function () { openPlayBoard(p); },
+      style: { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 6px', borderBottom: '1px solid #16162a', cursor: 'pointer', borderRadius: 6, background: selPid === p.id ? pcol + '14' : 'transparent' }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: { fontFamily: "'DBMono','Courier New',monospace", fontWeight: 900, fontSize: 12, color: pcol, background: pcol + '18', border: '1px solid ' + pcol + '44', borderRadius: 4, padding: '3px 8px', minWidth: 36, textAlign: 'center', flexShrink: 0 }
+    }, p.code || '\u2014'), /*#__PURE__*/React.createElement("span", {
+      style: { fontSize: 13, color: '#dde1f0', fontWeight: 700, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+    }, p.name || 'Sin nombre'), pt && /*#__PURE__*/React.createElement("span", {
+      style: { fontSize: 9, color: pt.defaultColor, fontWeight: 700, background: pt.defaultColor + '18', border: '1px solid ' + pt.defaultColor + '33', borderRadius: 3, padding: '2px 6px', letterSpacing: 0.5, whiteSpace: 'nowrap', flexShrink: 0 }
+    }, String(pt.label || '').toUpperCase()), /*#__PURE__*/React.createElement("span", {
+      style: { fontSize: 10, color: '#4a4a6a', fontFamily: "'DBMono','Courier New',monospace", whiteSpace: 'nowrap', flexShrink: 0 }
+    }, nPhases + (nPhases === 1 ? ' FASE' : ' FASES') + ' \u00B7 ' + nRoles + ' FICHAS'), /*#__PURE__*/React.createElement("span", {
+      style: { color: selPid === p.id ? pcol : '#3a3a5a', fontSize: 11, flexShrink: 0 }
+    }, selPid === p.id ? '\u25BE' : '\u25B8')), selPid === p.id && /*#__PURE__*/React.createElement("div", {
+      style: { margin: '10px 0 16px' }
+    }, ((cd.phases || []).length > 1) && /*#__PURE__*/React.createElement("div", {
+      style: { display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }
+    }, cd.phases.map(function (ph) {
+      return /*#__PURE__*/React.createElement("button", {
+        key: ph.id,
+        onClick: function () { setPmPhase(ph.id); },
+        style: { background: pmPhase === ph.id ? '#39FF14' : 'transparent', color: pmPhase === ph.id ? '#04140a' : '#9a9ec0', border: '1px solid ' + (pmPhase === ph.id ? '#39FF14' : '#25253f'), borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.5 }
+      }, ph.name || 'Fase');
+    })), /*#__PURE__*/React.createElement("div", {
+      style: { width: '100%', aspectRatio: '680 / 500', borderRadius: 10, overflow: 'hidden', border: '1px solid #1f1f33', background: '#07070e' }
+    }, /*#__PURE__*/React.createElement(InteractiveCanvas, {
+      play: p,
+      ownAsgn: pmAsgn.own,
+      rivAsgn: pmAsgn.riv,
+      onField: [],
+      activePhaseId: pmPhase,
+      readOnly: true,
+      tokenScale: 1,
+      animating: false,
+      annotTool: null,
+      onMoveRole: function () {},
+      onMoveBall: function () {},
+      onRoleClick: function () {},
+      onRoleLongPress: function () {},
+      onTokenDrop: function () {},
+      onAddAnnotation: function () {},
+      onUpdateAnnotation: function () {},
+      onSelectAnnotation: function () {},
+      onClearAnnotTool: function () {}
+    }))));
   })))));
 }
 
