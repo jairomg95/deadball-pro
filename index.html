@@ -12607,6 +12607,11 @@ function SquadEditorScreen(_ref37) {
     _useState130 = _slicedToArray(_useState129, 2),
     fl = _useState130[0],
     setFl = _useState130[1];
+  var _sq = useState(''); var sq = _sq[0]; var setSq = _sq[1];
+  var plsView = sq ? pls.filter(function (p) {
+    var t = sq.toLowerCase();
+    return String(p.name || '').toLowerCase().indexOf(t) > -1 || String(p.squad_number || '').indexOf(t) > -1 || String(p.position || '').toLowerCase().indexOf(t) > -1;
+  }) : pls;
   var flr = useRef(null);
   useEffect(() => {
     var lid = getCurrentLeagueId();
@@ -13049,6 +13054,17 @@ function SquadEditorScreen(_ref37) {
     },
     style: { background: "#39FF14", color: "#07070e", border: "none", borderRadius: 6, padding: "8px 18px", fontSize: 12, fontWeight: 900, cursor: "pointer", letterSpacing: 1, marginBottom: 12 }
   }, "+ AÑADIR JUGADOR"),
+  /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: sq,
+    onChange: function (e) { setSq(e.target.value); },
+    placeholder: "\uD83D\uDD0D Buscar por nombre, dorsal o posici\u00F3n\u2026",
+    "aria-label": "Buscar jugador",
+    style: { display: 'block', width: '100%', maxWidth: 560, margin: '10px 0 6px', background: '#0c0c1a', border: '1px solid #22223a', borderRadius: 8, padding: '9px 12px', color: '#dde1f0', outline: 'none' }
+  }),
+  sq && /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 11, color: '#6a6e8e', marginBottom: 4 }
+  }, plsView.length, " de ", pls.length, " jugadores"),
   /*#__PURE__*/React.createElement("table", {
     style: {
       width: '100%',
@@ -13074,7 +13090,7 @@ function SquadEditorScreen(_ref37) {
       background: '#07070e',
       zIndex: 2
     }
-  }, h)))), /*#__PURE__*/React.createElement("tbody", null, pls.map((p, i) => /*#__PURE__*/React.createElement("tr", {
+  }, h)))), /*#__PURE__*/React.createElement("tbody", null, plsView.map((p, i) => /*#__PURE__*/React.createElement("tr", {
     key: p.id,
     style: {
       borderBottom: '1px solid #0e0e1a'
@@ -13207,24 +13223,19 @@ function SquadEditorScreen(_ref37) {
     style: { padding: '2px 6px' }
   }, /*#__PURE__*/React.createElement("div", {
     style: { display: 'flex', gap: 4, alignItems: 'center' }
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "text",
-    placeholder: "URL imagen",
-    defaultValue: (p.photo && !String(p.photo).startsWith('data:')) ? p.photo : '',
-    onBlur: e => {
-      var newVal = e.target.value.trim();
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
       var curIsUrl = p.photo && !String(p.photo).startsWith('data:');
-      var oldVal = curIsUrl ? p.photo : '';
-      if (newVal !== oldVal) upd(p.id, 'photo', newVal);
+      dbmPrompt('Pega la URL de la foto de ' + (p.name || 'este jugador') + ':\n\n(También puedes pulsar su avatar para subir un archivo)', curIsUrl ? p.photo : '').then(function (v) {
+        if (v === null) return;
+        v = v.trim();
+        var oldVal = curIsUrl ? p.photo : '';
+        if (v !== oldVal) upd(p.id, 'photo', v);
+      });
     },
-    onKeyDown: e => { if (e.key === 'Enter') e.target.blur(); },
-    style: _objectSpread(_objectSpread({}, inp), {}, {
-      width: 130, padding: '3px 6px', fontSize: 10,
-      fontFamily: 'monospace',
-      color: p.photo ? '#dde1f0' : '#3a3a4a'
-    }),
-    title: "Pega una URL de imagen del jugador"
-  }), p.photo && /*#__PURE__*/React.createElement("button", {
+    title: p.photo ? (String(p.photo).startsWith('data:') ? 'Foto subida \u00B7 clic para cambiar por URL' : 'Foto por URL \u00B7 clic para cambiar') : 'A\u00F1adir foto por URL',
+    style: { background: 'transparent', border: '1px solid ' + (p.photo ? '#39FF1444' : '#22223a'), color: p.photo ? '#39FF14' : '#4a4a6a', borderRadius: 5, padding: '3px 10px', fontSize: 10, cursor: 'pointer', fontWeight: 700, letterSpacing: 0.5, whiteSpace: 'nowrap' }
+  }, p.photo ? '\u2713 FOTO' : '+ URL'), p.photo && /*#__PURE__*/React.createElement("button", {
     onClick: () => { dbmConfirm('¿Eliminar foto de ' + (p.name || 'este jugador') + '?', { danger: true }).then(function (ok) { if (ok) upd(p.id, 'photo', ''); }); },
     style: {
       background: 'transparent', border: 'none', color: '#3a3a4a',
