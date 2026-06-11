@@ -6892,31 +6892,31 @@ function HomeScreen(_ref17) {
   }, "\u2191 IMPORT"))),
   // \u2500\u2500 Barra de navegaci\u00f3n inferior (p\u00edldora flotante) \u2500\u2500
   /*#__PURE__*/React.createElement("div", {
-    style: { position: 'fixed', left: '50%', bottom: 14, transform: 'translateX(-50%)', zIndex: 9000,
-      display: 'flex', gap: 4, alignItems: 'center', padding: 6,
-      background: 'rgba(12,12,26,0.92)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-      border: '1px solid #2a2a3a', borderRadius: 18, boxShadow: '0 10px 30px rgba(0,0,0,0.6)' }
+    style: { position: 'fixed', left: '50%', bottom: 'max(16px, env(safe-area-inset-bottom))', transform: 'translateX(-50%)', zIndex: 9000,
+      display: 'flex', gap: 6, alignItems: 'center', padding: 8,
+      background: 'rgba(12,12,26,0.94)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+      border: '1px solid #2e2e48', borderRadius: 24, boxShadow: '0 12px 36px rgba(0,0,0,0.65)' }
   },
     /*#__PURE__*/React.createElement("button", {
       onClick: function(){ onSquad(null); },
-      style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 66, padding: '7px 12px',
-        borderRadius: 13, border: 'none', cursor: 'pointer', background: 'transparent', color: '#9aa0b4', fontWeight: 800, fontSize: 10, letterSpacing: 0.5 }
-    }, /*#__PURE__*/React.createElement("span", { style: { fontSize: 18, lineHeight: 1 } }, "\ud83d\udc65"), "PLANTILLAS"),
+      style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 96, padding: '11px 18px',
+        borderRadius: 17, border: 'none', cursor: 'pointer', background: 'transparent', color: '#aab0c6', fontWeight: 800, fontSize: 12.5, letterSpacing: 0.5 }
+    }, /*#__PURE__*/React.createElement("span", { style: { fontSize: 25, lineHeight: 1 } }, "\ud83d\udc65"), "PLANTILLAS"),
     /*#__PURE__*/React.createElement("button", {
       onClick: onNewMatch,
-      style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 78, padding: '8px 14px',
-        borderRadius: 14, border: 'none', cursor: 'pointer', background: '#39FF14', color: '#07070e', fontWeight: 900, fontSize: 11, letterSpacing: 0.5, boxShadow: '0 0 16px #39FF1466' }
-    }, /*#__PURE__*/React.createElement("span", { style: { fontSize: 19, lineHeight: 1 } }, "\u26bd"), "PARTIDO"),
+      style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 122, padding: '14px 24px',
+        borderRadius: 19, border: 'none', cursor: 'pointer', background: '#39FF14', color: '#07070e', fontWeight: 900, fontSize: 14.5, letterSpacing: 0.5, boxShadow: '0 0 22px #39FF1466' }
+    }, /*#__PURE__*/React.createElement("span", { style: { fontSize: 30, lineHeight: 1 } }, "\u26bd"), "PARTIDO"),
     /*#__PURE__*/React.createElement("button", {
       onClick: function(){ onLeagues && onLeagues(); },
-      style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 66, padding: '7px 12px',
-        borderRadius: 13, border: 'none', cursor: 'pointer', background: 'transparent', color: '#9aa0b4', fontWeight: 800, fontSize: 10, letterSpacing: 0.5 }
-    }, /*#__PURE__*/React.createElement("span", { style: { fontSize: 18, lineHeight: 1 } }, "\ud83d\uddc2\ufe0f"), "LIGAS")
+      style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 96, padding: '11px 18px',
+        borderRadius: 17, border: 'none', cursor: 'pointer', background: 'transparent', color: '#aab0c6', fontWeight: 800, fontSize: 12.5, letterSpacing: 0.5 }
+    }, /*#__PURE__*/React.createElement("span", { style: { fontSize: 25, lineHeight: 1 } }, "\ud83d\uddc2\ufe0f"), "LIGAS")
   ), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
       overflow: 'auto',
-      padding: '20px 20px 100px'
+      padding: '20px 20px 130px'
     }
   }, loading ? /*#__PURE__*/React.createElement("div", {
     style: {
@@ -13883,6 +13883,20 @@ if('serviceWorker' in navigator){
     if(!currentUser||busy) return;
     busy=true; spin(true); setStatus('Subiendo…');
     currentHash().then(function(c){
+      /* Anti-pisado: si la nube es más nueva que lo último sincronizado por
+         ESTE dispositivo, alguien escribió desde otro sitio. */
+      return dbfs.collection(COLLECTION).doc(currentUser.uid).get().then(function(snap){
+        var d = snap.exists ? snap.data() : null;
+        var conflict = d && (d.ts||0) > LS.ts && d.hash !== c.hash;
+        if(!conflict) return c;
+        if(!manual || !window.dbmConfirm){
+          setStatus('\u26A0 La nube tiene cambios m\u00E1s recientes de otro dispositivo. Abre \u2601 y elige Subir o Bajar.','#F9A826');
+          return null;
+        }
+        return window.dbmConfirm('La nube tiene cambios M\u00C1S RECIENTES (de otro dispositivo).\n\nSi subes ahora, esos cambios se perder\u00E1n y quedar\u00E1 lo de este dispositivo.', { title: 'CONFLICTO DE SINCRONIZACI\u00D3N', okText: 'Sobrescribir nube', danger: true }).then(function(ok){ return ok ? c : null; });
+      });
+    }).then(function(c){
+      if(!c){ busy=false; spin(false); return; }
       var ts=Date.now();
       return gzipStr(c.str).then(function(gz){
         if(gz){
@@ -13924,6 +13938,12 @@ if('serviceWorker' in navigator){
       if(d.hash===local.hash){ setStatus('✓ Todo sincronizado','#39FF14'); busy=false; spin(false); return; }
       var cloudNewer = (d.ts||0) > LS.ts;
       if(cloudNewer || manual){
+        var localDirty = local.hash !== LS.hash;
+        var proceed = (localDirty && window.dbmConfirm)
+          ? window.dbmConfirm('Tienes cambios en este dispositivo SIN SUBIR y la nube trae una versi\u00F3n distinta.\n\nSi bajas la nube, tus cambios locales no subidos se perder\u00E1n.', { title: 'CONFLICTO DE SINCRONIZACI\u00D3N', okText: 'Bajar la nube', cancelText: 'Cancelar', danger: true })
+          : Promise.resolve(true);
+        proceed.then(function(okGo){
+        if(!okGo){ setStatus('Sincronizaci\u00F3n cancelada. Sube \u2191 tus cambios o exporta un backup antes.','#F9A826'); busy=false; spin(false); return; }
         setStatus('Bajando datos de la nube…');
         var getObj = d.gz ? gunzipB64(d.gz).then(function(t){ return JSON.parse(t); }) : Promise.resolve(d.backup);
         getObj.then(function(backupObj){ return mirrorImport(backupObj); }).then(function(){
@@ -13931,6 +13951,7 @@ if('serviceWorker' in navigator){
           setStatus('✓ Datos actualizados, recargando…','#39FF14');
           setTimeout(function(){ location.reload(); }, 700);
         }).catch(function(e){ setStatus('Error al importar: '+(e.message),'#f88'); busy=false; spin(false); });
+        });
       } else {
         // local más nuevo -> sube
         busy=false; spin(false);
