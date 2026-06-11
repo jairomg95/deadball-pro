@@ -400,6 +400,7 @@
     var svg = boardSvg();
     if (!svg) { if (window.dbmAlert) dbmAlert('No hay ninguna pizarra visible.'); return; }
     busy = true;
+    try { window.dbmTrack && window.dbmTrack('share_image'); } catch (e) {}
     try {
       var vb = (svg.getAttribute('viewBox') || '0 0 680 500').split(/\s+/);
       var vw = parseFloat(vb[2]) || 680, vh = parseFloat(vb[3]) || 500;
@@ -603,6 +604,7 @@ textarea{font-family:inherit;resize:none}
   ];
   var idx = 0, ov = null;
   function done() {
+    try { window.dbmTrack && window.dbmTrack(idx === STEPS.length - 1 ? 'tutorial_done' : 'tutorial_skipped'); } catch (e) {}
     try { localStorage.setItem(KEY, '1'); } catch (e) {}
     if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
   }
@@ -3491,6 +3493,7 @@ function savePlay(_x8) {
 }
 function _savePlay() {
   _savePlay = _asyncToGenerator(function* (play) {
+    try { window.dbmTrack && window.dbmTrack('play_saved'); } catch (e) {}
     return db.plays.put(play);
   });
   return _savePlay.apply(this, arguments);
@@ -7275,6 +7278,7 @@ function PreMatch(_ref22) {
     _handleStart = _asyncToGenerator(function* () {
       setSaving(true);
       try {
+        try { window.dbmTrack && window.dbmTrack('match_created'); } catch (e) {}
         yield db.matches.add({
           id: matchId,
           home_team_id: homeId,
@@ -10257,6 +10261,7 @@ function MatchDayScreen(_ref28) {
     _handleFinish = _asyncToGenerator(function* () {
       var _score$home2, _score$away2;
       if (!(yield dbmConfirm('¿Finalizar el partido?', { okText: 'Finalizar' }))) return;
+      try { window.dbmTrack && window.dbmTrack('match_finished'); } catch (e) {}
       yield db.matches.update(matchId, {
         status: 'finished',
         home_score: (_score$home2 = score.home) !== null && _score$home2 !== void 0 ? _score$home2 : 0,
@@ -13755,6 +13760,7 @@ if('serviceWorker' in navigator){
     var pass=(document.getElementById('dbmPass')||{}).value||'';
     if(!email||!pass){ setStatus('Pon email y contraseña','#f88'); return; }
     setStatus('Conectando…');
+    if(isSignup){ try{ window.dbmTrack && window.dbmTrack('account_created'); }catch(e){} }
     var fn=isSignup ? auth.createUserWithEmailAndPassword.bind(auth)
                     : auth.signInWithEmailAndPassword.bind(auth);
     fn(email,pass).catch(function(e){
@@ -13826,6 +13832,7 @@ if('serviceWorker' in navigator){
       var pw=(document.getElementById('dbmWPass')||{}).value||'';
       if(!em||!pw){ wErr('Pon email y contraseña'); return; }
       wErr('Conectando…');
+      if(isSignup){ try{ window.dbmTrack && window.dbmTrack('account_created'); }catch(e){} }
       var fn=isSignup?auth.createUserWithEmailAndPassword.bind(auth):auth.signInWithEmailAndPassword.bind(auth);
       fn(em,pw).catch(function(e){ wErr(mapAuthErr(e)); });
     }
@@ -14002,6 +14009,70 @@ if('serviceWorker' in navigator){
   else window.addEventListener('DOMContentLoaded', function(){ waitDB(40); });
 })();
 
+</script>
+<script>
+/* ============================================================
+   TELEMETRÍA ANÓNIMA (v15): contadores de uso agregados por día.
+   - Sin datos personales (id de dispositivo aleatorio, no ligado a cuenta).
+   - Cola en localStorage: funciona offline y envía al volver la conexión.
+   - Reusa el Firestore ya inicializado por el módulo de nube.
+   API: window.dbmTrack('nombre_evento')
+   ============================================================ */
+(function () {
+  'use strict';
+  var KEY_Q = 'dbm_stats_queue', KEY_ID = 'dbm_device_id';
+  function devId() {
+    try {
+      var v = localStorage.getItem(KEY_ID);
+      if (!v) { v = 'd' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem(KEY_ID, v); }
+      return v;
+    } catch (e) { return 'dmem'; }
+  }
+  window.dbmTrack = function (ev) {
+    try {
+      if (!/^[a-z][a-z0-9_]{1,29}$/.test(ev)) return;
+      var q = JSON.parse(localStorage.getItem(KEY_Q) || '{}');
+      var day = new Date().toISOString().slice(0, 10);
+      q[day] = q[day] || {};
+      q[day][ev] = (q[day][ev] || 0) + 1;
+      localStorage.setItem(KEY_Q, JSON.stringify(q));
+    } catch (e) {}
+  };
+  var flushing = false;
+  function flush() {
+    if (flushing || !navigator.onLine) return;
+    try {
+      if (!(window.firebase && firebase.apps && firebase.apps.length)) return;
+      var q = JSON.parse(localStorage.getItem(KEY_Q) || '{}');
+      var days = Object.keys(q).slice(0, 7);
+      if (!days.length) return;
+      flushing = true;
+      var fsdb = firebase.firestore(), id = devId();
+      Promise.all(days.map(function (day) {
+        var data = { day: day, device: id, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+        var evs = q[day], n = 0;
+        Object.keys(evs).forEach(function (k) {
+          if (n < 25 && /^[a-z][a-z0-9_]{1,29}$/.test(k)) { data['ev_' + k] = firebase.firestore.FieldValue.increment(evs[k]); n++; }
+        });
+        return fsdb.collection('dbm_stats').doc(day + '_' + id).set(data, { merge: true });
+      })).then(function () {
+        var q2 = JSON.parse(localStorage.getItem(KEY_Q) || '{}');
+        days.forEach(function (d) { delete q2[d]; });
+        localStorage.setItem(KEY_Q, JSON.stringify(q2));
+      }).catch(function () {}).then(function () { flushing = false; });
+    } catch (e) { flushing = false; }
+  }
+  setInterval(flush, 90 * 1000);
+  window.addEventListener('online', flush);
+  setTimeout(flush, 10000);
+  /* eventos automáticos */
+  window.dbmTrack('app_open');
+  try {
+    if ((window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true) window.dbmTrack('app_open_installed');
+  } catch (e) {}
+  window.addEventListener('error', function () { window.dbmTrack('js_error'); });
+  window.addEventListener('unhandledrejection', function () { window.dbmTrack('js_rejection'); });
+})();
 </script>
 </body>
 </html>
