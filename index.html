@@ -492,8 +492,8 @@ html,body,#root{width:100%;height:100%;height:100dvh;
   user-select:none;-webkit-user-select:none;touch-action:none;
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-  background-image:radial-gradient(rgba(57,255,20,0.025) 1px,transparent 1px);
-  background-size:20px 20px;mix-blend-mode:screen}
+  background-image:radial-gradient(rgba(57,255,20,0.03) 1px,transparent 1px);
+  background-size:20px 20px}
 input,textarea{user-select:text;-webkit-user-select:text}
 input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#0a0a14}
@@ -1209,6 +1209,10 @@ function TeamLogo(props) {
   }, showShort ? (team.short_name || team.name.substring(0, 3).toUpperCase()) : '');
 }
 var POS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST'];
+// Normaliza códigos simplificados/alternativos a los códigos oficiales del sistema.
+// (Los datos semilla usan DF/MC/DL, que no existían en POS y rompían el selector.)
+var POS_NORM_G = { DF: 'CB', MC: 'CM', DL: 'ST', MED: 'CM', DEF: 'CB', DEL: 'ST', POR: 'GK', EXT: 'LW', MCD: 'CDM', MCI: 'CM', MCC: 'CM', DC: 'ST', PT: 'GK' };
+function normPos(code) { code = code || ''; return POS.indexOf(code) > -1 ? code : (POS_NORM_G[code] || 'CM'); }
 // Mapeo a etiquetas españolas (display only — los códigos internos siguen siendo inglés)
 var POS_ES = {
   GK: 'PT', CB: 'CT', LB: 'LTI', RB: 'LTD',
@@ -3197,7 +3201,7 @@ function _syncRealSquads() {
           team_id: teamId,
           squad_number: p.num,
           name: p.name,
-          position: p.position,
+          position: normPos(p.position),
           height: p.height || null,
           photo: p.photo || dbmAvatar(p, teamColorOf(teamId)),
           is_active: true
@@ -3222,6 +3226,18 @@ function initDB() {
 function _initDB() {
   _initDB = _asyncToGenerator(function* () {
     yield db.open();
+    // Migración única: normaliza posiciones de jugadores a los códigos oficiales
+    // (los datos antiguos usaban DF/MC/DL, que rompían el selector de posición).
+    var POS_FLAG = 'dbm_pos_normalized_v1';
+    if (!localStorage.getItem(POS_FLAG)) {
+      try {
+        var allP = yield db.players.toArray();
+        var fixes = allP.filter(function (p) { return POS.indexOf(p.position) === -1; })
+          .map(function (p) { return db.players.update(p.id, { position: normPos(p.position) }); });
+        if (fixes.length) yield Promise.all(fixes);
+        localStorage.setItem(POS_FLAG, '1');
+      } catch (e) { console.warn('Pos normalize error:', e); }
+    }
     // Sync logos from TEAMS into existing DB (idempotent, runs once per logo version)
     var LOGO_FLAG = 'dbm_logos_synced_v1';
     if (!localStorage.getItem(LOGO_FLAG)) {
@@ -7213,7 +7229,7 @@ function PreMatch(_ref22) {
                 team_id: homeId,
                 squad_number: p.num,
                 name: p.name,
-                position: p.position,
+                position: normPos(p.position),
                 height: p.height || null,
                 photo: p.photo || dbmAvatar(p, teamColorOf(homeId)),
                 is_active: true
@@ -7250,7 +7266,7 @@ function PreMatch(_ref22) {
         match_id: matchId,
         squad_number: p.num,
         name: p.name,
-        position: p.position,
+        position: normPos(p.position),
         height: p.height || null,
         photo: p.photo || dbmAvatar(p, teamColorOf(awayId)),
         role: i < 11 ? 'starter' : 'sub'
@@ -12660,7 +12676,7 @@ function SquadEditorScreen(_ref37) {
           var np = real.map(function(p) {
             return {
               id: selId + '_' + String(p.num).padStart(2, '0'),
-              team_id: selId, squad_number: p.num, name: p.name, position: p.position,
+              team_id: selId, squad_number: p.num, name: p.name, position: normPos(p.position),
               height: p.height || null, photo: p.photo || dbmAvatar(p, teamColorOf(selId)), is_active: true
             };
           });
@@ -12704,7 +12720,7 @@ function SquadEditorScreen(_ref37) {
           team_id: selId,
           squad_number: p.num,
           name: p.name,
-          position: p.position,
+          position: normPos(p.position),
           height: p.height || null,
           photo: p.photo || dbmAvatar(p, teamColorOf(selId)),
           is_active: true
@@ -13218,7 +13234,7 @@ function SquadEditorScreen(_ref37) {
       padding: '2px 6px'
     }
   }, /*#__PURE__*/React.createElement("select", {
-    value: p.position,
+    value: normPos(p.position),
     onChange: e => upd(p.id, 'position', e.target.value),
     style: _objectSpread(_objectSpread({}, inp), {}, {
       width: 68,
