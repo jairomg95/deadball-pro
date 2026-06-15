@@ -9778,50 +9778,77 @@ function MatchDayScreen(_ref28) {
     var startSeg = phases.findIndex(p => p.id === activePhaseId);
     if (startSeg < 0 || startSeg >= phases.length - 1) startSeg = 0;
     var roles = play.canvas_data.roles || [];
-    var segIdx = startSeg;
-    var segStart = null;
-    setActivePhaseId(phases[segIdx].id);
+    // Distancia máxima (jugadores o balón) recorrida en cada segmento
+    function segDist(a, b) {
+      var maxd = 0;
+      roles.forEach(function (r) {
+        var fp = (a.positions && a.positions[r.role_key]) || { x: r.x, y: r.y };
+        var tp = (b.positions && b.positions[r.role_key]) || fp;
+        var d = Math.hypot(tp.x - fp.x, tp.y - fp.y);
+        if (d > maxd) maxd = d;
+      });
+      if (a.ball && b.ball) {
+        var bd = Math.hypot(b.ball.x - a.ball.x, b.ball.y - a.ball.y);
+        if (bd > maxd) maxd = bd;
+      }
+      return maxd;
+    }
+    // Duración por segmento PROPORCIONAL a la distancia => velocidad constante.
+    // animSpeed = ms para recorrer todo el campo (distancia 1.0). Mínimo 220ms.
+    var durs = [];
+    for (var s = startSeg; s < phases.length - 1; s++) {
+      durs.push(Math.max(220, segDist(phases[s], phases[s + 1]) * animSpeed));
+    }
+    var total = durs.reduce(function (x, y) { return x + y; }, 0) || 1;
+    var animStart = null;
+    var lastK = -1;
+    setActivePhaseId(phases[startSeg].id);
     setAnimating(true);
     animPausedRef.current = false;
+    // Suavizado SOLO global (arranque y frenada). En medio, velocidad constante (sin frenar en cada frame).
+    function globalEase(g) {
+      var IN = 0.12, OUT = 0.88;
+      if (g < IN) return (g / IN) * (g / IN) * IN;
+      if (g > OUT) { var u = (g - OUT) / (1 - OUT); return OUT + (1 - (1 - u) * (1 - u)) * (1 - OUT); }
+      return g;
+    }
     var tick = function tick(now) {
       if (animPausedRef.current) return;
-      if (segStart === null) segStart = now;
-      var elapsed = now - segStart;
-      var t = Math.min(1, elapsed / animSpeed);
-      var e = easeInOutCubic(t);
-      var fromPh = phases[segIdx];
-      var toPh = phases[segIdx + 1];
+      if (animStart === null) animStart = now;
+      var raw = Math.min(1, (now - animStart) / total);
+      var elapsed = globalEase(raw) * total;
+      var acc = 0, k = 0;
+      while (k < durs.length - 1 && elapsed >= acc + durs[k]) { acc += durs[k]; k++; }
+      var segFrom = phases[startSeg + k];
+      var segTo = phases[startSeg + k + 1];
+      var lt = durs[k] > 0 ? Math.min(1, (elapsed - acc) / durs[k]) : 1;
       var positions = {};
       roles.forEach(function (r) {
-        var fp = (fromPh.positions && fromPh.positions[r.role_key]) || { x: r.x, y: r.y };
-        var tp = (toPh.positions && toPh.positions[r.role_key]) || fp;
+        var fp = (segFrom.positions && segFrom.positions[r.role_key]) || { x: r.x, y: r.y };
+        var tp = (segTo.positions && segTo.positions[r.role_key]) || fp;
         positions[r.role_key] = {
-          x: fp.x + (tp.x - fp.x) * e,
-          y: fp.y + (tp.y - fp.y) * e
+          x: fp.x + (tp.x - fp.x) * lt,
+          y: fp.y + (tp.y - fp.y) * lt
         };
       });
       var ball = null;
-      if (fromPh.ball && toPh.ball) {
+      if (segFrom.ball && segTo.ball) {
         ball = {
-          x: fromPh.ball.x + (toPh.ball.x - fromPh.ball.x) * e,
-          y: fromPh.ball.y + (toPh.ball.y - fromPh.ball.y) * e
+          x: segFrom.ball.x + (segTo.ball.x - segFrom.ball.x) * lt,
+          y: segFrom.ball.y + (segTo.ball.y - segFrom.ball.y) * lt
         };
       } else {
-        ball = toPh.ball || fromPh.ball || null;
+        ball = segTo.ball || segFrom.ball || null;
       }
       setInterpData({ positions: positions, ball: ball });
-      if (t >= 1) {
-        segIdx++;
-        if (segIdx >= phases.length - 1) {
-          // Última fase alcanzada
-          setActivePhaseId(phases[phases.length - 1].id);
-          setInterpData(null);
-          setAnimating(false);
-          animRafRef.current = null;
-          return;
-        }
-        segStart = now;
-        setActivePhaseId(phases[segIdx].id);
+      if (k !== lastK) { lastK = k; setActivePhaseId(phases[startSeg + k].id); }
+      if (raw >= 1) {
+        var lastPh = phases[phases.length - 1];
+        setActivePhaseId(lastPh.id);
+        setInterpData(null);
+        setAnimating(false);
+        animRafRef.current = null;
+        return;
       }
       animRafRef.current = requestAnimationFrame(tick);
     };
