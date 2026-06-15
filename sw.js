@@ -1,7 +1,7 @@
-// Service worker de DeadBall Manager PRO. (build v12)
+// Service worker de DeadBall Manager PRO.
 // - Cachea el "shell" de la app (para abrir sin conexión).
 // - Cachea las imágenes remotas (escudos/fotos) tras la primera carga -> offline.
-const CACHE = 'dbm-pro-v16';
+const CACHE = 'dbm-pro-v12';
 const IMG_CACHE = 'dbm-pro-img-v1';
 const SHELL = [
   'index.html',
@@ -43,36 +43,32 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
 
-  // Imágenes (incluidas las remotas de jugadores/escudos): caché al instante
-  // + revalidación en segundo plano (si el escudo cambia, se actualiza solo).
+  // Imágenes (incluidas las remotas de jugadores/escudos): cache-first.
+  // Se sirven al instante desde caché y, si no están, se descargan y se guardan.
   if (isImage(req)) {
     e.respondWith(
       caches.open(IMG_CACHE).then((c) =>
         c.match(req).then((hit) => {
-          const net = fetch(req).then((res) => {
+          if (hit) return hit;
+          return fetch(req).then((res) => {
             // Guarda copia (también respuestas opaque de otros dominios).
             if (res && (res.ok || res.type === 'opaque')) c.put(req, res.clone());
             return res;
           }).catch(() => hit);
-          return hit || net;
         })
       )
     );
     return;
   }
 
-  // Resto (shell, scripts): caché al instante (arranque rápido a pie de campo)
-  // + actualización en segundo plano. Las versiones nuevas llegan igualmente
-  // al subir CACHE en este archivo (el navegador siempre revalida el sw.js).
+  // Resto (shell, scripts): red primero con respaldo en caché.
   e.respondWith(
-    caches.open(CACHE).then((c) =>
-      c.match(req).then((hit) => {
-        const net = fetch(req).then((res) => {
-          c.put(req, res.clone()).catch(() => {});
-          return res;
-        }).catch(() => hit || caches.match('index.html'));
-        return hit || net;
+    fetch(req)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        return res;
       })
-    )
+      .catch(() => caches.match(req).then((r) => r || caches.match('index.html')))
   );
 });

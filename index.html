@@ -9489,6 +9489,13 @@ function MatchDayScreen(_ref28) {
     _handleTokenDrop = _asyncToGenerator(function* (item, x, y) {
       if (!pid) return;
       var play = plays.find(p => p.id === pid);
+      // Evitar DUPLICAR el mismo jugador/rival en la pizarra (ya está asignado a un rol)
+      if (item.type === 'player' && item.data && Object.keys(ownAsgn || {}).some(function(k){ return ownAsgn[k] && ownAsgn[k].player_id === item.data.player_id; })) {
+        toast('#' + item.data.squad_number + ' ya está en la pizarra'); return;
+      }
+      if (item.type === 'rival' && item.data && Object.keys(rivAsgn || {}).some(function(k){ return rivAsgn[k] && rivAsgn[k].id === item.data.id; })) {
+        toast('Rival #' + item.data.squad_number + ' ya está en la pizarra'); return;
+      }
       pushUndo();
       if (item.type === 'player') {
         var pd = item.data;
