@@ -7726,6 +7726,40 @@ function StepAlineaciones(props) {
       homeTeam = props.homeTeam, awayTeam = props.awayTeam;
   var _t = useState('local'), tab = _t[0], setTab = _t[1];
 
+  // FLIP: anima el desplazamiento de las filas al añadir/quitar titular (sin "saltito").
+  var scrollRef = useRef(null);
+  var flipRef = useRef({ tab: null, rects: {} });
+  React.useLayoutEffect(function () {
+    var root = scrollRef.current;
+    if (!root) return;
+    var st = flipRef.current;
+    var prev = st.tab === tab ? st.rects : {};
+    var next = {};
+    var els = root.querySelectorAll('[data-flip]');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      var id = el.getAttribute('data-flip');
+      var top = el.getBoundingClientRect().top;
+      next[id] = top;
+      var was = prev[id];
+      if (was != null) {
+        var dy = was - top;
+        if (dy && Math.abs(dy) < 1500) {
+          el.style.transition = 'none';
+          el.style.transform = 'translateY(' + dy + 'px)';
+          void el.offsetHeight;
+          (function (node) {
+            requestAnimationFrame(function () {
+              node.style.transition = 'transform .22s cubic-bezier(.2,.7,.3,1)';
+              node.style.transform = '';
+            });
+          })(el);
+        }
+      }
+    }
+    flipRef.current = { tab: tab, rects: next };
+  });
+
   var localAccent = (homeTeam && homeTeam.color) || '#42A5F5';
   var rivalAccent = (awayTeam && awayTeam.color) || '#E63946';
 
@@ -7752,7 +7786,7 @@ function StepAlineaciones(props) {
   }
   function row(p, accent, actionEls){
     var hasPhoto = !!p.photo;
-    return h('div', { key: p.id, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
+    return h('div', { key: p.id, 'data-flip': p.id, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
         background: '#0e0e1a', border: '1px solid ' + accent + '22', borderRadius: 6, marginBottom: 4 } },
       h('div', { style: { width: 30, height: 30, borderRadius: '50%', background: hasPhoto ? '#0e0e1a' : accent + '22',
           backgroundImage: hasPhoto ? 'url(' + p.photo + ')' : 'none', backgroundSize: 'cover', backgroundPosition: 'center top',
@@ -7808,7 +7842,7 @@ function StepAlineaciones(props) {
   function rAdd(){ onUpdateRivals(function(prev){ var n = prev.reduce(function(m, r){ return Math.max(m, r.squad_number || 0); }, 0) + 1; return prev.concat([{ id: 'rv_' + uid(), squad_number: n, name: '', position: 'CM', role: rStart.length < 11 ? 'starter' : 'sub' }]); }); }
   function rivalRow(r, accent, actionEls){
     var hasPhoto = !!r.photo;
-    return h('div', { key: r.id, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#0e0e1a', border: '1px solid ' + accent + '22', borderRadius: 6, marginBottom: 4 } },
+    return h('div', { key: r.id, 'data-flip': r.id, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#0e0e1a', border: '1px solid ' + accent + '22', borderRadius: 6, marginBottom: 4 } },
       h('div', { style: { width: 30, height: 30, borderRadius: '50%', background: hasPhoto ? '#0e0e1a' : accent + '22', backgroundImage: hasPhoto ? 'url(' + r.photo + ')' : 'none', backgroundSize: 'cover', backgroundPosition: 'center top', border: '1.5px solid ' + accent + '55', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', fontFamily: "'DBMono','Courier New',monospace", fontSize: 11, fontWeight: 900, color: accent } }, !hasPhoto && r.squad_number),
       h('span', { style: { fontFamily: "'DBMono','Courier New',monospace", fontSize: 12, fontWeight: 900, color: accent, minWidth: 22 } }, r.squad_number),
       h('input', { defaultValue: r.name || '', placeholder: 'Nombre del jugador', onBlur: function(e){ if (e.target.value !== (r.name || '')) rName(r.id, e.target.value); }, style: { flex: 1, minWidth: 0, background: 'transparent', border: 'none', borderBottom: '1px dashed #2a2a3a', color: '#dde1f0', fontSize: 13, fontWeight: 700, padding: '3px 2px', outline: 'none' } }),
@@ -7878,7 +7912,7 @@ function StepAlineaciones(props) {
         tabBtn('local', 'LOCAL · ' + (homeTeam ? homeTeam.short_name : ''), homeTeam, localAccent, starters.length, localComplete),
         tabBtn('rival', 'RIVAL · ' + (awayTeam ? awayTeam.short_name : ''), awayTeam, rivalAccent, rivalStarters, rivalComplete))),
     helper,
-    h('div', { key: tab, className: 'dbm-fade', style: { flex: 1, overflow: 'auto' } }, tab === 'local' ? localPanel : rivalPanel));
+    h('div', { key: tab, ref: scrollRef, className: 'dbm-fade', style: { flex: 1, overflow: 'auto' } }, tab === 'local' ? localPanel : rivalPanel));
 }
 function StepLineup(_ref24) {
   var squad = _ref24.squad,
