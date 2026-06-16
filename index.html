@@ -10304,6 +10304,15 @@ function MatchDayScreen(_ref28) {
       away_score: n
     }).catch(() => {});
   }
+  // Suma/resta basada en el estado MÁS reciente (evita perder toques rápidos).
+  function bumpScore(side, delta) {
+    setScore(function (s) {
+      var cur = s[side] != null ? s[side] : 0;
+      var n = Math.max(0, Math.min(99, cur + delta));
+      db.matches.update(matchId, side === 'home' ? { home_score: n } : { away_score: n }).catch(function () {});
+      return _objectSpread(_objectSpread({}, s), {}, { [side]: n });
+    });
+  }
   // Stepper de marcador: ▲ suma gol, ▼ corrige (resta). Pensado para tocar en móvil.
   function scoreStepper(side) {
     var val = side === 'home' ? score.home : score.away;
@@ -10311,7 +10320,7 @@ function MatchDayScreen(_ref28) {
     var arrow = function (label, delta) {
       var off = delta < 0 && cur <= 0;
       return /*#__PURE__*/React.createElement("button", {
-        onClick: function () { updateScore(side, cur + delta); },
+        onClick: function () { bumpScore(side, delta); },
         disabled: off,
         'aria-label': delta > 0 ? 'Sumar gol' : 'Quitar gol',
         style: {
