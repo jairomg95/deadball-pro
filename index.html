@@ -10294,7 +10294,7 @@ function MatchDayScreen(_ref28) {
     return _addRival.apply(this, arguments);
   }
   function updateScore(side, v) {
-    var n = Math.max(0, parseInt(v) || 0);
+    var n = Math.max(0, Math.min(99, parseInt(v) || 0));
     setScore(s => _objectSpread(_objectSpread({}, s), {}, {
       [side]: n
     }));
@@ -10303,6 +10303,42 @@ function MatchDayScreen(_ref28) {
     } : {
       away_score: n
     }).catch(() => {});
+  }
+  // Stepper de marcador: ▲ suma gol, ▼ corrige (resta). Pensado para tocar en móvil.
+  function scoreStepper(side) {
+    var val = side === 'home' ? score.home : score.away;
+    var cur = val != null ? val : 0;
+    var arrow = function (label, delta) {
+      var off = delta < 0 && cur <= 0;
+      return /*#__PURE__*/React.createElement("button", {
+        onClick: function () { updateScore(side, cur + delta); },
+        disabled: off,
+        'aria-label': delta > 0 ? 'Sumar gol' : 'Quitar gol',
+        style: {
+          background: 'transparent', border: 'none', cursor: off ? 'default' : 'pointer',
+          color: delta > 0 ? '#39FF14' : '#F9A826', opacity: off ? 0.2 : 1,
+          fontSize: 11, lineHeight: 1, padding: '3px 6px', fontWeight: 900
+        }
+      }, label);
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }
+    },
+      arrow("▲", 1),
+      /*#__PURE__*/React.createElement("input", {
+        type: "number", min: "0", max: "99",
+        value: val != null ? val : '',
+        onChange: function (e) { updateScore(side, e.target.value); },
+        placeholder: "0",
+        style: {
+          width: 24, background: 'transparent', border: 'none',
+          color: '#ffffff', fontSize: 18, fontWeight: 900,
+          fontFamily: "'DBMono','Courier New',monospace",
+          textAlign: 'center', outline: 'none', MozAppearance: 'textfield'
+        }
+      }),
+      arrow("▼", -1)
+    );
   }
   function handleFinish() {
     return _handleFinish.apply(this, arguments);
@@ -10468,33 +10504,11 @@ function MatchDayScreen(_ref28) {
         height: '100%'
       }
     },
-      /*#__PURE__*/React.createElement("input", {
-        type: "number", min: "0", max: "99",
-        value: (_score$home = score.home) !== null && _score$home !== void 0 ? _score$home : '',
-        onChange: e => updateScore('home', e.target.value),
-        placeholder: "0",
-        style: {
-          width: 22, background: 'transparent', border: 'none',
-          color: '#ffffff', fontSize: 18, fontWeight: 900,
-          fontFamily: "'DBMono','Courier New',monospace",
-          textAlign: 'center', outline: 'none'
-        }
-      }),
+      scoreStepper('home'),
       /*#__PURE__*/React.createElement("span", {
         style: { color: '#4a4a6a', fontSize: 18, fontWeight: 900, lineHeight: 1 }
       }, "\xB7"),
-      /*#__PURE__*/React.createElement("input", {
-        type: "number", min: "0", max: "99",
-        value: (_score$away = score.away) !== null && _score$away !== void 0 ? _score$away : '',
-        onChange: e => updateScore('away', e.target.value),
-        placeholder: "0",
-        style: {
-          width: 22, background: 'transparent', border: 'none',
-          color: '#ffffff', fontSize: 18, fontWeight: 900,
-          fontFamily: "'DBMono','Courier New',monospace",
-          textAlign: 'center', outline: 'none'
-        }
-      })
+      scoreStepper('away')
     ),
     // Equipo visitante
     /*#__PURE__*/React.createElement("div", {
