@@ -3412,16 +3412,21 @@ function getTeamsByLeague(leagueId) {
     return ts.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
   });
 }
+var MAX_USER_LEAGUES = 5;   // tope de ligas creadas por el usuario (protege datos/coste)
 function createLeague(data) {
   var id = data.id || ('lg_' + uid());
-  return db.leagues.put({
-    id: id,
-    name: data.name || 'Nueva liga',
-    color: data.color || '#39FF14',
-    logo: data.logo || null,
-    own_team_id: data.own_team_id || null,
-    created_at: new Date().toISOString()
-  }).then(function() { return id; });
+  return db.leagues.toArray().then(function (all) {
+    var userCount = all.filter(function (l) { return typeof l.id === 'string' && l.id.indexOf('lg_') === 0; }).length;
+    if (!data.id && userCount >= MAX_USER_LEAGUES) return Promise.reject(new Error('LIMIT_LEAGUES'));
+    return db.leagues.put({
+      id: id,
+      name: data.name || 'Nueva liga',
+      color: data.color || '#39FF14',
+      logo: data.logo || null,
+      own_team_id: data.own_team_id || null,
+      created_at: new Date().toISOString()
+    }).then(function() { return id; });
+  });
 }
 function updateLeague(id, patch) {
   return db.leagues.update(id, patch);
@@ -7297,6 +7302,12 @@ function PreMatch(_ref22) {
     _handleStart = _asyncToGenerator(function* () {
       setSaving(true);
       try {
+        var _matchCount = yield db.matches.count();
+        if (_matchCount >= 40) {
+          toast('Máximo 40 partidos. Borra alguno para crear otro.');
+          setSaving(false);
+          return;
+        }
         try { window.dbmTrack && window.dbmTrack('match_created'); } catch (e) {}
         yield db.matches.add({
           id: matchId,
@@ -9021,12 +9032,22 @@ function MatchDayScreen(_ref28) {
     });
     return _selPlay.apply(this, arguments);
   }
+  // Tope de jugadas por partido. Solo activo en versión gratis (FREEMIUM) — hoy dormido.
+  var MAX_FREE_PLAYS = 3;
+  function playCapBlocked() {
+    if (dbmFreeLocked() && plays.length >= MAX_FREE_PLAYS) {
+      toast('🔒 Máximo ' + MAX_FREE_PLAYS + ' jugadas por partido en la versión gratis');
+      return true;
+    }
+    return false;
+  }
   function handleSavePlay(_x30) {
     return _handleSavePlay.apply(this, arguments);
   }
   function _handleSavePlay() {
     _handleSavePlay = _asyncToGenerator(function* (playData) {
       var isNew = !plays.find(p => p.id === playData.id);
+      if (isNew && playCapBlocked()) return;
       var pt = PLAY_TYPES.find(t => t.id === playData.play_type);
       var newPlay = {
         id: playData.id,
@@ -9064,6 +9085,7 @@ function MatchDayScreen(_ref28) {
   }
   function _handleInsertTemplate() {
     _handleInsertTemplate = _asyncToGenerator(function* (tpl) {
+      if (playCapBlocked()) return;
       var newId = "play_".concat(uid());
       var newPlay = {
         id: newId,
@@ -9126,6 +9148,7 @@ function MatchDayScreen(_ref28) {
   }
   function _handleInsertFromLibrary() {
     _handleInsertFromLibrary = _asyncToGenerator(function* (libPlay) {
+      if (playCapBlocked()) return;
       var newId = "play_".concat(uid());
       var newPlay = {
         id: newId,
@@ -9184,6 +9207,7 @@ function MatchDayScreen(_ref28) {
     _handleDuplicatePlay = _asyncToGenerator(function* (playId) {
       var orig = plays.find(p => p.id === playId);
       if (!orig) return;
+      if (playCapBlocked()) return;
       var newId = "play_".concat(uid());
       var newPlay = _objectSpread(_objectSpread({}, orig), {}, {
         id: newId,
@@ -12455,6 +12479,8 @@ function LeaguesScreen(props) {
     }).then(function() {
       toast('Liga creada', 'ok');
       if (newId) onEditLeague(newId);
+    }).catch(function(e){
+      if (e && e.message === 'LIMIT_LEAGUES') toast('Máximo ' + MAX_USER_LEAGUES + ' ligas. Borra alguna para crear otra.');
     });
     });
   }
@@ -13881,7 +13907,12 @@ if('serviceWorker' in navigator){
     if(isSignup){ try{ window.dbmTrack && window.dbmTrack('account_created'); }catch(e){} }
     var fn=isSignup ? auth.createUserWithEmailAndPassword.bind(auth)
                     : auth.signInWithEmailAndPassword.bind(auth);
-    fn(email,pass).catch(function(e){
+    fn(email,pass).then(function(cred){
+      if(isSignup && cred && cred.user){
+        try{ cred.user.sendEmailVerification(); }catch(_){}
+        setStatus('✓ Cuenta creada. Te enviamos un email para verificarla.','#39FF14');
+      }
+    }).catch(function(e){
       var m=e.code||e.message||'';
       if(m.indexOf('email-already-in-use')>=0) setStatus('Ese email ya existe, usa Entrar','#f88');
       else if(m.indexOf('wrong-password')>=0||m.indexOf('invalid-credential')>=0) setStatus('Contraseña incorrecta','#f88');
@@ -13952,7 +13983,7 @@ if('serviceWorker' in navigator){
       wErr('Conectando…');
       if(isSignup){ try{ window.dbmTrack && window.dbmTrack('account_created'); }catch(e){} }
       var fn=isSignup?auth.createUserWithEmailAndPassword.bind(auth):auth.signInWithEmailAndPassword.bind(auth);
-      fn(em,pw).catch(function(e){ wErr(mapAuthErr(e)); });
+      fn(em,pw).then(function(cred){ if(isSignup && cred && cred.user){ try{ cred.user.sendEmailVerification(); }catch(_){} wErr('✓ Cuenta creada. Revisa tu email para verificarla.'); } }).catch(function(e){ wErr(mapAuthErr(e)); });
     }
     document.getElementById('dbmWLogin').onclick=function(){ wAuth(false); };
     document.getElementById('dbmWSignup').onclick=function(){ wAuth(true); };
