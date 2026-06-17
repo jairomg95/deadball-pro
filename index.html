@@ -175,6 +175,8 @@ footer{border-top:1px solid var(--line);padding:40px 0;background:rgba(7,7,14,.6
 .shot-bar .u{margin-left:12px;font-size:12px;color:var(--faint);font-family:monospace}
 .shot img{width:100%;display:block}
 .shot-cap{text-align:center;color:var(--faint);font-size:13px;margin-top:14px}
+/* install grid (4 plataformas) */
+.install-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
 /* reveal anim */
 .reveal{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
 .reveal.in{opacity:1;transform:none}
@@ -184,7 +186,7 @@ footer{border-top:1px solid var(--line);padding:40px 0;background:rgba(7,7,14,.6
   .hero p.sub{margin-left:auto;margin-right:auto}
   .hero-cta{justify-content:center}
   .phone-col{order:-1}
-  .feat-grid,.steps,.price-grid,.killer-grid{grid-template-columns:1fr}
+  .feat-grid,.steps,.price-grid,.killer-grid,.install-grid{grid-template-columns:1fr}
   .killer-grid{gap:30px}
   .nav-links a:not(.btn){display:none}
 }
@@ -513,6 +515,23 @@ footer{border-top:1px solid var(--line);padding:40px 0;background:rgba(7,7,14,.6
         </ul>
         <a class="btn btn-primary" href="app/" target="_blank" rel="noopener">Probar la app</a>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- INSTALAR -->
+<section class="sec killer" style="padding-top:30px">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">En cualquier dispositivo</div>
+      <h2>Instálala como app en 10 segundos</h2>
+      <p>Sin tiendas ni esperas: se instala directa desde el navegador, gratis.</p>
+    </div>
+    <div class="install-grid">
+      <div class="feat reveal"><div class="ico">📱</div><h3>iPhone / iPad</h3><p>Ábrela en <b>Safari</b> → botón <b>Compartir</b> → <b>"Añadir a pantalla de inicio"</b>. Queda con su icono y a pantalla completa.</p></div>
+      <div class="feat reveal"><div class="ico">🍎</div><h3>Mac</h3><p>En <b>Chrome/Edge</b> pulsa <b>"Instalar"</b> en la barra de direcciones; o en <b>Safari</b> → <b>"Añadir al Dock"</b>.</p></div>
+      <div class="feat reveal"><div class="ico">🖥️</div><h3>Windows PC</h3><p>En <b>Chrome o Edge</b>, pulsa el icono <b>"Instalar"</b> a la derecha de la barra de direcciones.</p></div>
+      <div class="feat reveal"><div class="ico">🤖</div><h3>Android</h3><p>Pronto en <b>Google Play</b>. Mientras, en <b>Chrome</b> → menú → <b>"Instalar aplicación"</b>.</p></div>
     </div>
   </div>
 </section>
