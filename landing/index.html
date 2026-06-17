@@ -159,6 +159,22 @@ footer{border-top:1px solid var(--line);padding:40px 0;background:rgba(7,7,14,.6
 .foot-links a:hover{color:var(--neon)}
 .foot-copy{color:var(--faint);font-size:13px}
 
+/* KILLER FEATURE */
+.killer{background:linear-gradient(180deg,rgba(57,255,20,.05),transparent 60%);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.killer-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.killer-txt h2{font-size:clamp(28px,4vw,42px);font-weight:800;line-height:1.06;margin:12px 0 16px}
+.killer-txt p{color:var(--muted);font-size:17px;margin-bottom:20px}
+.killer-list{list-style:none;display:flex;flex-direction:column;gap:12px;margin-bottom:26px}
+.killer-list li{display:flex;gap:11px;align-items:flex-start;font-size:16px;color:var(--txt)}
+.killer-list .ck{color:var(--neon);font-weight:800;flex-shrink:0}
+.killer-viz{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.4)}
+/* browser frame para captura real */
+.shot{border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);max-width:780px;margin:0 auto;background:#0a0a12}
+.shot-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;background:#10101e;border-bottom:1px solid var(--line)}
+.shot-bar i{width:11px;height:11px;border-radius:50%;display:inline-block}
+.shot-bar .u{margin-left:12px;font-size:12px;color:var(--faint);font-family:monospace}
+.shot img{width:100%;display:block}
+.shot-cap{text-align:center;color:var(--faint);font-size:13px;margin-top:14px}
 /* reveal anim */
 .reveal{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
 .reveal.in{opacity:1;transform:none}
@@ -168,7 +184,8 @@ footer{border-top:1px solid var(--line);padding:40px 0;background:rgba(7,7,14,.6
   .hero p.sub{margin-left:auto;margin-right:auto}
   .hero-cta{justify-content:center}
   .phone-col{order:-1}
-  .feat-grid,.steps,.price-grid{grid-template-columns:1fr}
+  .feat-grid,.steps,.price-grid,.killer-grid{grid-template-columns:1fr}
+  .killer-grid{gap:30px}
   .nav-links a:not(.btn){display:none}
 }
 </style>
@@ -263,6 +280,68 @@ footer{border-top:1px solid var(--line);padding:40px 0;background:rgba(7,7,14,.6
   </div>
 </section>
 
+<!-- KILLER FEATURE -->
+<section class="sec killer">
+  <div class="wrap killer-grid">
+    <div class="killer-txt reveal">
+      <div class="eyebrow">Lo que ninguna pizarra hace</div>
+      <h2>Un cambio. <span class="neon">Todas tus jugadas</span> actualizadas al instante.</h2>
+      <p>Diseñas las jugadas por <b>rol</b>, no por nombre. Cuando haces una sustitución, el jugador que entra ocupa su sitio <b>automáticamente en todos tus córners, faltas y saques</b>. Sin rehacer nada, sin tocar pizarra por pizarra.</p>
+      <ul class="killer-list">
+        <li><span class="ck">✓</span> <span>Sustituyes <b>una vez</b> y se aplica a <b>todas</b> las jugadas a la vez.</span></li>
+        <li><span class="ck">✓</span> <span>Cero trabajo repetido a pie de campo, justo cuando vas con prisa.</span></li>
+        <li><span class="ck">✓</span> <span>Tu pizarra siempre refleja a los 11 que están en el campo.</span></li>
+      </ul>
+      <a class="btn btn-primary" href="https://jairomg95.github.io/deadball-pro/" target="_blank" rel="noopener">Probar gratis</a>
+    </div>
+    <div class="killer-viz reveal">
+      <svg viewBox="0 0 460 360" width="100%" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="dn" markerWidth="10" markerHeight="10" refX="5" refY="8" orient="auto"><path d="M1,1 L5,8 L9,1" fill="none" stroke="#9aa0b4" stroke-width="2"/></marker>
+        </defs>
+        <!-- cambio -->
+        <g font-family="'Barlow Condensed',sans-serif" text-anchor="middle">
+          <text x="230" y="22" fill="#9aa0b4" font-size="14" font-weight="700" letter-spacing="2">SUSTITUCIÓN</text>
+          <!-- sale -->
+          <circle cx="170" cy="62" r="22" fill="#E63946"/><text x="170" y="69" fill="#fff" font-family="monospace" font-size="17" font-weight="bold">7</text>
+          <text x="170" y="103" fill="#E63946" font-size="13" font-weight="700">SALE</text>
+          <!-- flecha -->
+          <path d="M198 62 L262 62" stroke="#39FF14" stroke-width="3" marker-end="url(#dn)" transform="rotate(0 230 62)"/>
+          <path d="M200 62 L258 62" stroke="#39FF14" stroke-width="3"/>
+          <path d="M250 55 L260 62 L250 69" fill="none" stroke="#39FF14" stroke-width="3"/>
+          <!-- entra -->
+          <circle cx="290" cy="62" r="22" fill="#39FF14"/><text x="290" y="69" fill="#04210a" font-family="monospace" font-size="16" font-weight="bold">16</text>
+          <text x="290" y="103" fill="#39FF14" font-size="13" font-weight="700">ENTRA</text>
+          <!-- se aplica a -->
+          <text x="230" y="150" fill="#dde1f0" font-size="16" font-weight="700">se actualiza en TODAS tus jugadas ↓</text>
+        </g>
+        <!-- 3 jugadas -->
+        <g>
+          <g transform="translate(20,175)">
+            <rect width="130" height="150" rx="10" fill="#0a1f10" stroke="#1e1e30"/>
+            <rect x="30" y="10" width="70" height="34" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.3"/>
+            <circle cx="40" cy="80" r="13" fill="#42A5F5"/><circle cx="90" cy="70" r="13" fill="#42A5F5"/>
+            <circle cx="65" cy="110" r="14" fill="#39FF14" stroke="#fff" stroke-width="1.5"/><text x="65" y="115" fill="#04210a" font-family="monospace" font-size="12" font-weight="bold" text-anchor="middle">16</text>
+            <text x="65" y="140" fill="#9aa0b4" font-family="'Barlow Condensed'" font-size="12" font-weight="700" text-anchor="middle">CÓRNER D</text>
+          </g>
+          <g transform="translate(165,175)">
+            <rect width="130" height="150" rx="10" fill="#0a1f10" stroke="#1e1e30"/>
+            <circle cx="40" cy="60" r="13" fill="#42A5F5"/><circle cx="95" cy="90" r="13" fill="#42A5F5"/>
+            <circle cx="65" cy="115" r="14" fill="#39FF14" stroke="#fff" stroke-width="1.5"/><text x="65" y="120" fill="#04210a" font-family="monospace" font-size="12" font-weight="bold" text-anchor="middle">16</text>
+            <text x="65" y="140" fill="#9aa0b4" font-family="'Barlow Condensed'" font-size="12" font-weight="700" text-anchor="middle">FALTA</text>
+          </g>
+          <g transform="translate(310,175)">
+            <rect width="130" height="150" rx="10" fill="#0a1f10" stroke="#1e1e30"/>
+            <circle cx="45" cy="75" r="13" fill="#42A5F5"/><circle cx="95" cy="65" r="13" fill="#42A5F5"/>
+            <circle cx="70" cy="110" r="14" fill="#39FF14" stroke="#fff" stroke-width="1.5"/><text x="70" y="115" fill="#04210a" font-family="monospace" font-size="12" font-weight="bold" text-anchor="middle">16</text>
+            <text x="65" y="140" fill="#9aa0b4" font-family="'Barlow Condensed'" font-size="12" font-weight="700" text-anchor="middle">SAQUE</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
 <!-- FEATURES -->
 <section class="sec" id="features">
   <div class="wrap">
@@ -305,7 +384,12 @@ footer{border-top:1px solid var(--line);padding:40px 0;background:rgba(7,7,14,.6
       <h2>Así preparas un córner en 20 segundos</h2>
       <p>Coloca, marca el envío, anima. Tan simple como suena.</p>
     </div>
-    <div class="demo-box reveal">
+    <div class="shot reveal">
+      <div class="shot-bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="u">DeadBall Manager PRO · pizarra</span></div>
+      <img src="shot-pizarra.png" alt="Pizarra táctica de DeadBall Manager PRO con una jugada de córner: jugadores colocados y el recorrido del balón"/>
+    </div>
+    <p class="shot-cap">Captura real de la app · pizarra táctica de un córner</p>
+    <div class="demo-box reveal" style="display:none">
       <div class="demo-screen">
         <!-- mockup ancho de la pizarra -->
         <svg viewBox="0 0 760 475" width="100%" height="100%">
