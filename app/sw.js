@@ -1,7 +1,7 @@
 // Service worker de DeadBall Manager PRO.
 // - Cachea el "shell" de la app (para abrir sin conexión).
 // - Cachea las imágenes remotas (escudos/fotos) tras la primera carga -> offline.
-const CACHE = 'dbm-pro-v21';
+const CACHE = 'dbm-pro-v22';
 const IMG_CACHE = 'dbm-pro-img-v1';
 const SHELL = [
   'index.html',
@@ -42,6 +42,8 @@ function isImage(req) {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
+  // Analítica (PostHog): dejar pasar sin interceptar ni cachear.
+  if (/posthog\.com/i.test(req.url)) return;
 
   // Imágenes (incluidas las remotas de jugadores/escudos): cache-first.
   // Se sirven al instante desde caché y, si no están, se descargan y se guardan.
