@@ -4135,7 +4135,8 @@ var Token = React.memo(function Token(_ref6) {
   var base = customCol || (isRiv ? '#C62828' : '#1565C0');
   var rim = customCol ? customCol : (isRiv ? '#FF5252' : '#42A5F5');
   var fs = hasN ? (num >= 10 ? Math.round(R * 0.61) : Math.round(R * 0.78)) : Math.round(R * 0.44);
-  var lbl = customLabel || role.label || role.role_key.replace(/_/g, ' ');
+  // Etiqueta opcional: si se ha definido (aunque sea vacía) se respeta; si no, cae al label/role_key.
+  var lbl = (customLabel !== undefined && customLabel !== null) ? customLabel : (role.label || role.role_key.replace(/_/g, ' '));
   var photoClipId = 'photoClip_' + role.role_key.replace(/[^a-zA-Z0-9]/g, '_');
   // Insignia del dorsal cuando hay foto: pequeño círculo abajo-derecha
   var badgeR = Math.max(9, Math.round(R * 0.42));
@@ -5516,12 +5517,15 @@ function PlayLibraryModal(props) {
   var onDelete = props.onDelete;
   var onClose = props.onClose;
   var _q = useState(''), q = _q[0], setQ = _q[1];
-  var filtered = q.trim()
-    ? items.filter(function(it) {
-        var s = (it.code + ' ' + it.name).toLowerCase();
-        return s.indexOf(q.toLowerCase()) >= 0;
-      })
-    : items;
+  var _tf = useState(''), typeFilter = _tf[0], setTypeFilter = _tf[1];
+  var filtered = items.filter(function(it) {
+    if (typeFilter && it.play_type !== typeFilter) return false;
+    if (q.trim()) {
+      var s = (it.code + ' ' + it.name).toLowerCase();
+      if (s.indexOf(q.toLowerCase()) < 0) return false;
+    }
+    return true;
+  });
   return /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
@@ -5554,16 +5558,29 @@ function PlayLibraryModal(props) {
       cursor: 'pointer', fontSize: 20, padding: '2px 8px'
     }
   }, "\u00D7")),
-  /*#__PURE__*/React.createElement("div", { style: { padding: '8px 16px', borderBottom: '1px solid #12122a' } },
+  /*#__PURE__*/React.createElement("div", { style: { padding: '8px 16px', borderBottom: '1px solid #12122a', display: 'flex', gap: 8 } },
     /*#__PURE__*/React.createElement("input", {
       type: 'text', value: q, onChange: function(e) { setQ(e.target.value); },
       placeholder: 'Buscar por código o nombre…',
       style: {
-        width: '100%', background: '#07070e', border: '1px solid #2a2a3a',
+        flex: 1, background: '#07070e', border: '1px solid #2a2a3a',
         color: '#dde1f0', padding: '6px 10px', borderRadius: 4,
         fontSize: 13, outline: 'none', fontFamily: 'inherit'
       }
-    })),
+    }),
+    /*#__PURE__*/React.createElement("select", {
+      value: typeFilter, onChange: function(e) { setTypeFilter(e.target.value); },
+      title: 'Filtrar por tipo de jugada',
+      style: {
+        background: '#07070e', border: '1px solid #2a2a3a', color: '#cfd4e6',
+        padding: '6px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700,
+        cursor: 'pointer', outline: 'none'
+      }
+    },
+    /*#__PURE__*/React.createElement("option", { value: '' }, "Todas"),
+    PLAY_TYPES.map(function(pt) {
+      return /*#__PURE__*/React.createElement("option", { key: pt.id, value: pt.id }, pt.label);
+    }))),
   /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflow: 'auto', padding: '8px 12px' } },
     items.length === 0 && /*#__PURE__*/React.createElement("div", {
       style: { padding: '40px 16px', textAlign: 'center', color: '#3a3a5a', fontSize: 12, lineHeight: 1.6 }
@@ -5659,10 +5676,7 @@ function RoleEditorModal(_ref10) {
     setColor(p.color);
   }
   function handleSave() {
-    if (!label.trim()) {
-      dbmAlert('La etiqueta es obligatoria');
-      return;
-    }
+    // La etiqueta es OPCIONAL: puedes dejarla vacía o poner texto libre (p. ej. "Bloquea", "Primera zona").
     var finalKey = roleKey.trim() || "R_".concat(uid().toUpperCase().slice(0, 4));
     onSave(_objectSpread(_objectSpread({}, role), {}, {
       role_key: finalKey,
@@ -8773,6 +8787,7 @@ function MatchDayScreen(_ref28) {
     undoRef = useRef(null),
     undoFrame = useRef(null),
     undoStart = useRef(null);
+  var undoDataRef = useRef(null);
   var canSubRef = useRef(false),
     playsRef = useRef([]);
   var UNDO_MS = 5000;
@@ -10040,7 +10055,10 @@ function MatchDayScreen(_ref28) {
         startUndo({
           pOut: pO,
           pIn: pI,
-          minute
+          minute,
+          kind: 'local',
+          outNum: pO && pO.player && pO.player.squad_number,
+          inNum: pI && pI.player && pI.player.squad_number
         });
         toast("Cambio: #".concat(pO === null || pO === void 0 || (_pO$player = pO.player) === null || _pO$player === void 0 ? void 0 : _pO$player.squad_number, " \u2192 #").concat(pI === null || pI === void 0 || (_pI$player = pI.player) === null || _pI$player === void 0 ? void 0 : _pI$player.squad_number), 'ok');
       } catch (e) {
@@ -10052,6 +10070,7 @@ function MatchDayScreen(_ref28) {
   function startUndo(ls) {
     clearTimeout(undoRef.current);
     cancelAnimationFrame(undoFrame.current);
+    undoDataRef.current = ls;
     setUndo(ls);
     setUndoPct(1);
     undoStart.current = Date.now();
@@ -10072,6 +10091,14 @@ function MatchDayScreen(_ref28) {
     _handleUndo = _asyncToGenerator(function* (dismiss) {
       clearTimeout(undoRef.current);
       cancelAnimationFrame(undoFrame.current);
+      var _ud = undoDataRef.current;
+      // Cambio de rival: deshacer con su propia lógica.
+      if (!dismiss && _ud && _ud.kind === 'rival') {
+        yield undoRivalSub(_ud.rivOut, _ud.rivIn, _ud.outPrevRole);
+        undoDataRef.current = null;
+        setUndo(null);
+        return;
+      }
       if (!dismiss) {
         var ls = subs[subs.length - 1];
         if (ls) {
@@ -10322,6 +10349,7 @@ function MatchDayScreen(_ref28) {
         if (!rOut || !rIn) { toast('Jugador rival no encontrado'); return; }
         if (rOut.role === 'sub') { toast('El saliente debe ser titular'); return; }
         if (rIn.role !== 'sub') { toast('El entrante debe ser suplente'); return; }
+        var outPrevRole = rOut.role;
         yield db.transaction('rw', [db.rival_assignments, db.markings, db.rival_players], _asyncToGenerator(function* () {
           // Transferir assignments del saliente al entrante
           var allRA = yield db.rival_assignments.where('match_id').equals(matchId).toArray();
@@ -10341,12 +10369,38 @@ function MatchDayScreen(_ref28) {
           setOwnAsgn(_r[0]); setRivAsgn(_r[1]);
         }
         toast('Cambio rival: #' + rOut.squad_number + ' → #' + rIn.squad_number, 'ok');
+        startUndo({ kind: 'rival', rivOut: outId, rivIn: inId, outPrevRole: outPrevRole, outNum: rOut.squad_number, inNum: rIn.squad_number });
         setRivSubMod({ open: false, outId: null, inId: null });
       } catch (e) {
         toast(e.message);
       }
     });
     _f();
+  }
+  // Deshacer un cambio de rival (inverso de handleRivalSub).
+  function undoRivalSub(outId, inId, outPrevRole) {
+    return _asyncToGenerator(function* () {
+      try {
+        yield db.transaction('rw', [db.rival_assignments, db.markings, db.rival_players], _asyncToGenerator(function* () {
+          var allRA = yield db.rival_assignments.where('match_id').equals(matchId).toArray();
+          var back = allRA.filter(function(x) { return x.rival_player_id === inId; }).map(function(x) { return _objectSpread(_objectSpread({}, x), {}, { rival_player_id: outId }); });
+          if (back.length) yield db.rival_assignments.bulkPut(back);
+          var mRiv = yield db.markings.where('[match_id+rival_player_id]').equals([matchId, inId]).toArray();
+          if (mRiv.length) yield db.markings.bulkPut(mRiv.map(function(x) { return _objectSpread(_objectSpread({}, x), {}, { rival_player_id: outId }); }));
+          yield db.rival_players.update(outId, { role: outPrevRole || null });
+          yield db.rival_players.update(inId, { role: 'sub' });
+        }));
+        yield load();
+        if (pid) {
+          var freshLineup = yield getLineup(matchId, teamId);
+          var _r = yield Promise.all([getAssignments(matchId, pid, freshLineup), getRivalAssignments(matchId, pid)]);
+          setOwnAsgn(_r[0]); setRivAsgn(_r[1]);
+        }
+        toast('Cambio rival deshecho', 'ok');
+      } catch (e) {
+        toast(e.message);
+      }
+    })();
   }
   function addRival() {
     return _addRival.apply(this, arguments);
@@ -10790,49 +10844,33 @@ function MatchDayScreen(_ref28) {
   }, "+")),
   /*#__PURE__*/React.createElement("div", {
     style: {
-      display: "flex",
-      gap: 3,
-      padding: "4px 6px",
-      overflowX: "auto",
+      padding: "5px 6px",
       borderBottom: "1px solid #12122a",
-      flexShrink: 0,
-      WebkitOverflowScrolling: "touch"
-    }
-  },
-  /*#__PURE__*/React.createElement("button", {
-    onClick: function() { setSituFilter(null); },
-    style: {
-      background: situFilter === null ? "#39FF14" : "transparent",
-      border: "1px solid " + (situFilter === null ? "#39FF14" : "#2a2a3a"),
-      color: situFilter === null ? "#07070e" : "#6a7390",
-      borderRadius: 3,
-      padding: "2px 6px",
-      fontSize: 9,
-      fontWeight: 900,
-      cursor: "pointer",
-      whiteSpace: "nowrap",
       flexShrink: 0
     }
-  }, "TODO"),
+  },
+  /*#__PURE__*/React.createElement("select", {
+    value: situFilter || "",
+    onChange: function(e) { setSituFilter(e.target.value || null); },
+    title: "Filtrar jugadas por tipo",
+    style: {
+      width: "100%",
+      background: situFilter ? ((PLAY_TYPES.find(function(t){ return t.id === situFilter; }) || {}).defaultColor || "#39FF14") + "18" : "#0e0e1a",
+      color: "#cfd4e6",
+      border: "1px solid " + (situFilter ? ((PLAY_TYPES.find(function(t){ return t.id === situFilter; }) || {}).defaultColor || "#39FF14") : "#2a2a3a"),
+      borderRadius: 4,
+      padding: "5px 7px",
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: 0.3,
+      cursor: "pointer",
+      outline: "none"
+    }
+  },
+  /*#__PURE__*/React.createElement("option", { value: "" }, "Todas las jugadas"),
   PLAY_TYPES.map(function(pt) {
-    var active = situFilter === pt.id;
-    return /*#__PURE__*/React.createElement("button", {
-      key: pt.id,
-      onClick: function() { setSituFilter(active ? null : pt.id); },
-      style: {
-        background: active ? pt.defaultColor + "33" : "transparent",
-        border: "1px solid " + (active ? pt.defaultColor : "#2a2a3a"),
-        color: active ? pt.defaultColor : "#6a7390",
-        borderRadius: 3,
-        padding: "2px 6px",
-        fontSize: 9,
-        fontWeight: 700,
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-        flexShrink: 0
-      }
-    }, pt.label.toUpperCase());
-  })),
+    return /*#__PURE__*/React.createElement("option", { key: pt.id, value: pt.id }, pt.label);
+  }))),
   /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
@@ -11199,7 +11237,7 @@ active && /*#__PURE__*/React.createElement("button", {
       fontWeight: 700,
       letterSpacing: 1
     }
-  }, "TAM"), /*#__PURE__*/React.createElement("input", {
+  }, "FICHAS"), /*#__PURE__*/React.createElement("input", {
     type: "range",
     min: "0.6",
     max: "1.6",
@@ -11268,11 +11306,14 @@ active && /*#__PURE__*/React.createElement("button", {
         }
       });
     })),
+    /*#__PURE__*/React.createElement("span", {
+      style: { fontSize: 9, color: '#4a5568', fontWeight: 700, letterSpacing: 1, marginLeft: 6 }
+    }, "GROSOR"),
     /*#__PURE__*/React.createElement("input", {
       type: "range", min: "0.6", max: "2.5", step: "0.1",
       value: annotSize,
       onChange: function(e) { setAnnotSize(parseFloat(e.target.value)); },
-      title: "Grosor",
+      title: "Grosor del trazo (flechas, círculos, cuadrados)",
       style: { width: 50, accentColor: annotColor, cursor: 'pointer', marginLeft: 4 }
     }),
     selectedAnnotId && /*#__PURE__*/React.createElement("button", {
@@ -11431,14 +11472,19 @@ active && /*#__PURE__*/React.createElement("button", {
       onClick: () => {
         dbmConfirm("\xBFEliminar ".concat(ph.name, "?"), { danger: true }).then(function (ok) { if (ok) deletePhase(ph.id); });
       },
-      title: "Eliminar fase",
+      title: "Eliminar esta fase",
       style: {
-        background: 'transparent',
-        border: 'none',
-        color: '#3a3a4a',
+        background: '#E6394618',
+        border: '1px solid #E6394655',
+        color: '#E63946',
         cursor: 'pointer',
-        padding: '2px 5px',
-        fontSize: 13
+        padding: '2px 7px',
+        marginLeft: 2,
+        marginRight: 3,
+        borderRadius: 3,
+        fontSize: 13,
+        fontWeight: 900,
+        lineHeight: 1
       }
     }, "\xD7"));
   }), /*#__PURE__*/React.createElement("button", {
@@ -11869,17 +11915,17 @@ active && /*#__PURE__*/React.createElement("button", {
       fontSize: 13,
       color: '#9ba3b8'
     }
-  }, "MIN ", undo.minute, "' ", /*#__PURE__*/React.createElement("b", {
+  }, (undo.kind === 'rival' ? "RIVAL " : ("MIN " + (undo.minute != null ? undo.minute : 0) + "' ")), /*#__PURE__*/React.createElement("b", {
     style: {
       fontFamily: "'DBMono','Courier New',monospace",
       color: '#E63946'
     }
-  }, "#", (_undo$pOut = undo.pOut) === null || _undo$pOut === void 0 || (_undo$pOut = _undo$pOut.player) === null || _undo$pOut === void 0 ? void 0 : _undo$pOut.squad_number), " \u2192 ", /*#__PURE__*/React.createElement("b", {
+  }, "#", undo.outNum), " \u2192 ", /*#__PURE__*/React.createElement("b", {
     style: {
       fontFamily: "'DBMono','Courier New',monospace",
       color: '#39FF14'
     }
-  }, "#", (_undo$pIn = undo.pIn) === null || _undo$pIn === void 0 || (_undo$pIn = _undo$pIn.player) === null || _undo$pIn === void 0 ? void 0 : _undo$pIn.squad_number)), /*#__PURE__*/React.createElement("button", {
+  }, "#", undo.inNum)), /*#__PURE__*/React.createElement("button", {
     onClick: () => handleUndo(false),
     style: {
       background: 'transparent',
@@ -13872,6 +13918,12 @@ if('serviceWorker' in navigator){
     var panel=document.createElement('div'); panel.id='dbmSyncPanel';
     document.body.appendChild(panel);
     btn.onclick=function(){ panel.classList.toggle('show'); };
+    // Cerrar el panel al pulsar en cualquier otra parte de la pantalla.
+    document.addEventListener('pointerdown', function(e){
+      if(!panel.classList.contains('show')) return;
+      if(panel.contains(e.target) || e.target===btn || btn.contains(e.target)) return;
+      panel.classList.remove('show');
+    });
     ui.btn=btn; ui.panel=panel;
     render();
   }
