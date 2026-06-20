@@ -6770,6 +6770,8 @@ function HomeScreen(_ref17) {
     setLoading = _useState42[1];
   var _lgs = useState([]); var leagues = _lgs[0]; var setLeagues = _lgs[1];
   var _curL = useState(getCurrentLeagueId()); var curLeague = _curL[0]; var setCurLeague = _curL[1];
+  var _liveOpen = useState(true); var liveOpen = _liveOpen[0]; var setLiveOpen = _liveOpen[1];
+  var _finOpen = useState(true); var finOpen = _finOpen[0]; var setFinOpen = _finOpen[1];
   var fileRef = useRef(null);
   function loadHome(lid) {
     Promise.all([getRecentMatches(), db.teams.where('league_id').equals(lid).toArray()]).then(function(arr) {
@@ -7041,14 +7043,15 @@ function HomeScreen(_ref17) {
       marginBottom: 20
     }
   }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setLiveOpen(v => !v),
     style: {
-      fontSize: 9,
-      color: '#39FF14',
-      fontWeight: 700,
-      letterSpacing: 3,
-      marginBottom: 10
+      display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none', marginBottom: liveOpen ? 10 : 0
     }
-  }, "EN VIVO"), live.map(m => /*#__PURE__*/React.createElement(MatchCard, {
+  },
+    /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: '#39FF14', fontWeight: 700, letterSpacing: 3 } }, "EN VIVO"),
+    /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: '#39FF14', opacity: 0.55, fontWeight: 700, fontFamily: "'DBMono','Courier New',monospace" } }, live.length),
+    /*#__PURE__*/React.createElement("span", { style: { marginLeft: 'auto', color: '#39FF14', fontSize: 10, display: 'inline-block', transform: liveOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' } }, "▸")
+  ), liveOpen && live.map(m => /*#__PURE__*/React.createElement(MatchCard, {
     key: m.id,
     m: m,
     sb: sBadge,
@@ -7059,14 +7062,15 @@ function HomeScreen(_ref17) {
       marginBottom: 20
     }
   }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setFinOpen(v => !v),
     style: {
-      fontSize: 9,
-      color: '#3a3a5a',
-      fontWeight: 700,
-      letterSpacing: 3,
-      marginBottom: 10
+      display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none', marginBottom: finOpen ? 10 : 0
     }
-  }, "RECIENTES"), finished.slice(0, 5).map(m => /*#__PURE__*/React.createElement(MatchCard, {
+  },
+    /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: '#3a3a5a', fontWeight: 700, letterSpacing: 3 } }, "RECIENTES"),
+    /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: '#3a3a5a', opacity: 0.8, fontWeight: 700, fontFamily: "'DBMono','Courier New',monospace" } }, finished.length),
+    /*#__PURE__*/React.createElement("span", { style: { marginLeft: 'auto', color: '#3a3a5a', fontSize: 10, display: 'inline-block', transform: finOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' } }, "▸")
+  ), finOpen && finished.slice(0, 5).map(m => /*#__PURE__*/React.createElement(MatchCard, {
     key: m.id,
     m: m,
     sb: sBadge,
