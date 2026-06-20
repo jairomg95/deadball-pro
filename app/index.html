@@ -3955,9 +3955,59 @@ var PitchDefs = () => /*#__PURE__*/React.createElement("defs", null, /*#__PURE__
   in: "SourceGraphic"
 }))));
 function PitchBg(_ref5) {
-  var zone = _ref5.zone;
+  var zone = _ref5.zone, full = _ref5.full;
   var ln = 'rgba(255,255,255,0.62)',
     th = 'rgba(255,255,255,0.42)';
+  if (full) {
+    var E = React.createElement;
+    // Fondo común (césped + franjas + degradados)
+    var bg = [
+      E("rect", { key: 'fg0', width: W, height: H, fill: "url(#gp2)" }),
+      [0,1,2,3,4,5,6,7].map(function(i){ return E("rect", { key: 'fs'+i, x: 0, y: i*64, width: W, height: 32, fill: i%2===0 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)" }); }),
+      E("rect", { key: 'fg1', width: W, height: H, fill: "url(#grass)" }),
+      E("rect", { key: 'fg2', width: W, height: H, fill: "url(#gl2)" }),
+      E("rect", { key: 'fg3', width: W, height: H, fill: "url(#vignette)", pointerEvents: "none" })
+    ];
+    // Geometría de campo completo (orientación vertical, ataque hacia arriba)
+    var FY = 44, FB = 456, MID = (FY+FB)/2;
+    var gLx = 303, gRx = 377;            // ancho de portería
+    var fpaL = 138, fpaR = 542;          // área grande
+    var f6L = 248, f6R = 432;            // área pequeña
+    var paTopB = 109, p6TopB = 66, spTop = 87;       // profundidades arriba
+    var paBotT = FB-(paTopB-FY), p6BotT = FB-(p6TopB-FY), spBot = FB-(spTop-FY);
+    var marks = [
+      // Redes de portería (arriba/abajo)
+      E("rect", { key:'gt', x:gLx, y:FY-12, width:gRx-gLx, height:12, fill:"rgba(255,255,255,0.07)", stroke:ln, strokeWidth:1.5 }),
+      E("rect", { key:'gb', x:gLx, y:FB, width:gRx-gLx, height:12, fill:"rgba(255,255,255,0.07)", stroke:ln, strokeWidth:1.5 }),
+      // Perímetro
+      E("rect", { key:'per', x:0, y:FY, width:W, height:FB-FY, fill:"none", stroke:ln, strokeWidth:2.2 }),
+      // Línea de medio campo + círculo central + punto
+      E("line", { key:'mid', x1:0, y1:MID, x2:W, y2:MID, stroke:ln, strokeWidth:2 }),
+      E("ellipse", { key:'cc', cx:340, cy:MID, rx:88, ry:40, fill:"none", stroke:ln, strokeWidth:2 }),
+      E("circle", { key:'cs', cx:340, cy:MID, r:4, fill:th }),
+      // Área grande arriba / abajo
+      E("rect", { key:'pat', x:fpaL, y:FY, width:fpaR-fpaL, height:paTopB-FY, fill:"none", stroke:ln, strokeWidth:2 }),
+      E("rect", { key:'pab', x:fpaL, y:paBotT, width:fpaR-fpaL, height:FB-paBotT, fill:"none", stroke:ln, strokeWidth:2 }),
+      // Área pequeña arriba / abajo
+      E("rect", { key:'6t', x:f6L, y:FY, width:f6R-f6L, height:p6TopB-FY, fill:"none", stroke:th, strokeWidth:1.5 }),
+      E("rect", { key:'6b', x:f6L, y:p6BotT, width:f6R-f6L, height:FB-p6BotT, fill:"none", stroke:th, strokeWidth:1.5 }),
+      // Puntos de penalti
+      E("circle", { key:'spt', cx:340, cy:spTop, r:4.5, fill:th }),
+      E("circle", { key:'spb', cx:340, cy:spBot, r:4.5, fill:th }),
+      // Semicírculos del área (frontal)
+      E("path", { key:'art', d:"M 277 "+paTopB+" A 80 36 0 0 0 403 "+paTopB, fill:"none", stroke:th, strokeWidth:1.5 }),
+      E("path", { key:'arb', d:"M 277 "+paBotT+" A 80 36 0 0 1 403 "+paBotT, fill:"none", stroke:th, strokeWidth:1.5 }),
+      // Córners (4 esquinas)
+      E("path", { key:'ctl', d:"M 0 "+(FY+11)+" A 11 11 0 0 0 11 "+FY, fill:"none", stroke:ln, strokeWidth:1.4 }),
+      E("path", { key:'ctr', d:"M "+(W-11)+" "+FY+" A 11 11 0 0 0 "+W+" "+(FY+11), fill:"none", stroke:ln, strokeWidth:1.4 }),
+      E("path", { key:'cbl', d:"M 0 "+(FB-11)+" A 11 11 0 0 1 11 "+FB, fill:"none", stroke:ln, strokeWidth:1.4 }),
+      E("path", { key:'cbr', d:"M "+W+" "+(FB-11)+" A 11 11 0 0 1 "+(W-11)+" "+FB, fill:"none", stroke:ln, strokeWidth:1.4 }),
+      // Marca del punto de córner según zona (arriba)
+      zone === 'corner_r' && E("line", { key:'mcr', x1:W, y1:FY-3, x2:W, y2:FY+22, stroke:"rgba(255,80,80,0.75)", strokeWidth:3 }),
+      zone === 'corner_l' && E("line", { key:'mcl', x1:0, y1:FY-3, x2:0, y2:FY+22, stroke:"rgba(255,80,80,0.75)", strokeWidth:3 })
+    ];
+    return E(React.Fragment, null, bg, marks);
+  }
   var gY = 40,
     gL = 303,
     gR = 377,
@@ -4038,14 +4088,6 @@ function PitchBg(_ref5) {
     d: "M " + (W - 9) + " " + gY + " A 9 9 0 0 0 " + W + " " + (gY + 9),
     fill: "none", stroke: ln, strokeWidth: 1.4
   }),
-  /*#__PURE__*/React.createElement("path", {
-    d: "M 0 " + (H - 11) + " A 9 9 0 0 1 9 " + (H - 2),
-    fill: "none", stroke: ln, strokeWidth: 1.4
-  }),
-  /*#__PURE__*/React.createElement("path", {
-    d: "M " + W + " " + (H - 11) + " A 9 9 0 0 1 " + (W - 9) + " " + (H - 2),
-    fill: "none", stroke: ln, strokeWidth: 1.4
-  }),
   /*#__PURE__*/React.createElement("rect", {
     x: b6L,
     y: gY,
@@ -4072,31 +4114,21 @@ function PitchBg(_ref5) {
     fill: "none",
     stroke: th,
     strokeWidth: 1.5
-  }), zone === 'corner_r' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
-    d: "M ".concat(W - 13, " ").concat(gY, " A 13 13 0 0 0 ").concat(W, " ").concat(gY + 13),
-    fill: "none",
-    stroke: ln,
-    strokeWidth: 1.5
-  }), /*#__PURE__*/React.createElement("line", {
+  }), zone === 'corner_r' && /*#__PURE__*/React.createElement("line", {
     x1: W,
     y1: gY - 3,
     x2: W,
     y2: gY + 22,
     stroke: "rgba(255,80,80,0.75)",
     strokeWidth: 3
-  })), zone === 'corner_l' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
-    d: "M 13 ".concat(gY, " A 13 13 0 0 1 0 ").concat(gY + 13),
-    fill: "none",
-    stroke: ln,
-    strokeWidth: 1.5
-  }), /*#__PURE__*/React.createElement("line", {
+  }), zone === 'corner_l' && /*#__PURE__*/React.createElement("line", {
     x1: 0,
     y1: gY - 3,
     x2: 0,
     y2: gY + 22,
     stroke: "rgba(255,80,80,0.75)",
     strokeWidth: 3
-  })), (zone === 'penalty') && /*#__PURE__*/React.createElement("circle", {
+  }), (zone === 'penalty') && /*#__PURE__*/React.createElement("circle", {
     cx: spX,
     cy: paB,
     r: 11,
@@ -4642,7 +4674,8 @@ function InteractiveCanvas(_ref8) {
       handleSvgPointerUp(e);
     }
   }, /*#__PURE__*/React.createElement(PitchDefs, null), /*#__PURE__*/React.createElement(PitchBg, {
-    zone: play.canvas_data.pitch_zone
+    zone: play.canvas_data.pitch_zone,
+    full: play.canvas_data.field_full
   }), shiftHeld && (drag || ballDrag) && /*#__PURE__*/React.createElement("g", {
     opacity: 0.25,
     pointerEvents: "none"
@@ -9589,6 +9622,16 @@ function MatchDayScreen(_ref28) {
     setPlays(p => p.map(x => x.id === pid ? newPlay : x));
     });
   }
+  function toggleFieldFull() {
+    var play = plays.find(p => p.id === pid);
+    if (!play) return;
+    var nv = !play.canvas_data.field_full;
+    var newPlay = _objectSpread(_objectSpread({}, play), {}, {
+      canvas_data: _objectSpread(_objectSpread({}, play.canvas_data), {}, { field_full: nv })
+    });
+    savePlay(newPlay);
+    setPlays(p => p.map(x => x.id === pid ? newPlay : x));
+  }
   function toggleBall() {
     return _toggleBall.apply(this, arguments);
   }
@@ -11251,6 +11294,20 @@ active && /*#__PURE__*/React.createElement("button", {
       }
     }, hasBall ? '− BALÓN' : '+ BALÓN');
   })(), /*#__PURE__*/React.createElement("button", {
+    onClick: toggleFieldFull,
+    title: "Campo: medio (córner/falta) o completo",
+    style: {
+      background: (curPlay && curPlay.canvas_data.field_full) ? '#39FF1422' : '#1a1a2e',
+      border: "1px solid " + ((curPlay && curPlay.canvas_data.field_full) ? '#39FF14' : '#2a2a3a'),
+      color: (curPlay && curPlay.canvas_data.field_full) ? '#39FF14' : '#9ba3b8',
+      borderRadius: 3,
+      padding: '3px 8px',
+      fontSize: 10,
+      fontWeight: 700,
+      cursor: 'pointer',
+      whiteSpace: 'nowrap'
+    }
+  }, (curPlay && curPlay.canvas_data.field_full) ? 'CAMPO ●' : 'CAMPO ½'), /*#__PURE__*/React.createElement("button", {
     onClick: () => setRecMode(r => !r),
     title: "Grabaci\xF3n libre: cada movimiento crea un frame nuevo",
     style: {
