@@ -6973,7 +6973,10 @@ function HomeScreen(_ref17) {
     style: {
       flex: 1,
       overflow: 'auto',
-      padding: '20px 20px 130px'
+      padding: '20px 20px 130px',
+      width: '100%',
+      maxWidth: 920,
+      margin: '0 auto'
     }
   }, loading ? /*#__PURE__*/React.createElement("div", {
     style: {
@@ -11170,7 +11173,9 @@ active && /*#__PURE__*/React.createElement("button", {
       flexShrink: 0,
       display: 'flex',
       alignItems: 'center',
-      gap: 8
+      gap: 8,
+      overflowX: 'auto',
+      overflowY: 'hidden'
     }
   }, curPlay ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
