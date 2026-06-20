@@ -12945,6 +12945,7 @@ function SquadEditorScreen(_ref37) {
     setFl = _useState130[1];
   var _sq = useState(''); var sq = _sq[0]; var setSq = _sq[1];
   var _sv = useState('cards'); var squadView = _sv[0]; var setSquadView = _sv[1];
+  var _ec = useState(null); var editCard = _ec[0]; var setEditCard = _ec[1];
   var plsView = sq ? pls.filter(function (p) {
     var t = sq.toLowerCase();
     return String(p.name || '').toLowerCase().indexOf(t) > -1 || String(p.squad_number || '').indexOf(t) > -1 || String(p.position || '').toLowerCase().indexOf(t) > -1;
@@ -13201,11 +13202,13 @@ function SquadEditorScreen(_ref37) {
   function playerCard(p) {
     return /*#__PURE__*/React.createElement("div", {
       key: p.id,
-      style: { background: '#0e0e1a', border: '1px solid #1c1c2e', borderTop: '2px solid #39FF14', borderRadius: 9, padding: '8px 6px 7px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }
+      onClick: function() { setEditCard(p.id); },
+      title: "Editar jugador",
+      style: { background: '#0e0e1a', border: '1px solid #1c1c2e', borderTop: '2px solid #39FF14', borderRadius: 9, padding: '8px 6px 7px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', cursor: 'pointer' }
     },
       /*#__PURE__*/React.createElement("span", { style: { position: 'absolute', top: 5, left: 7, fontFamily: "'DBMono','Courier New',monospace", fontWeight: 900, fontSize: 13, color: '#39FF14' } }, p.squad_number),
       /*#__PURE__*/React.createElement("span", { style: { position: 'absolute', top: 6, right: 7, fontSize: 8, fontWeight: 800, color: '#8a93b0', letterSpacing: 0.3 } }, posGroup(p.position)),
-      /*#__PURE__*/React.createElement("label", { title: 'Subir foto de ' + (p.name || 'jugador'), style: { cursor: 'pointer', margin: '13px 0 5px' } },
+      /*#__PURE__*/React.createElement("label", { title: 'Subir foto de ' + (p.name || 'jugador'), onClick: function(e) { e.stopPropagation(); }, style: { cursor: 'pointer', margin: '13px 0 5px' } },
         p.photo
           ? /*#__PURE__*/React.createElement("div", { style: { width: 50, height: 50, borderRadius: '50%', backgroundImage: 'url(' + p.photo + ')', backgroundSize: 'cover', backgroundPosition: 'center top', border: '1.5px solid #2a3252', boxShadow: 'inset 0 -4px 8px rgba(0,0,0,0.35)' } })
           : /*#__PURE__*/React.createElement("div", { style: { width: 50, height: 50, borderRadius: '50%', background: '#161c2e', border: '1.5px dashed #39FF1466', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, fontWeight: 900, color: '#39FF14' } }, '+'),
@@ -13440,7 +13443,7 @@ function SquadEditorScreen(_ref37) {
     /*#__PURE__*/React.createElement("button", { onClick: function() { setSquadView('list'); }, style: pillStyle(squadView === 'list') }, "☰ Lista")
   ),
   squadView === 'cards' && /*#__PURE__*/React.createElement("div", { style: { maxWidth: 560 } },
-    /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: '#3a3a5a', marginBottom: 10 } }, "Toca la foto para subirla \xB7 cambia a Lista para editar nombres y dorsales"),
+    /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: '#3a3a5a', marginBottom: 10 } }, "Toca una carta para editar (dorsal, nombre, posici\xF3n, altura, foto) \xB7 toca la foto para subirla r\xE1pido"),
     POS_ORDER.map(function(g) {
       var arr = plsView.filter(function(p) { return posGroup(p.position) === g; }).sort(function(a, b) { return (a.squad_number || 0) - (b.squad_number || 0); });
       if (!arr.length) return null;
@@ -13450,6 +13453,66 @@ function SquadEditorScreen(_ref37) {
       );
     })
   ),
+  editCard && (function() {
+    var ecp = pls.find(function(p) { return p.id === editCard; });
+    if (!ecp) return null;
+    var lbl = { fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: '#6a7390', marginBottom: 4, display: 'block' };
+    var fld = { marginBottom: 11 };
+    return /*#__PURE__*/React.createElement("div", {
+      onClick: function() { setEditCard(null); },
+      style: { position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(3,3,8,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }
+    },
+      /*#__PURE__*/React.createElement("div", {
+        onClick: function(e) { e.stopPropagation(); },
+        style: { width: 'min(360px, 94vw)', maxHeight: '90vh', overflowY: 'auto', background: '#0e0e1a', border: '1px solid #2a2a3a', borderRadius: 14, padding: '16px 16px 14px', boxShadow: '0 10px 40px rgba(0,0,0,0.7)' }
+      },
+        /*#__PURE__*/React.createElement("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 } },
+          /*#__PURE__*/React.createElement("span", { style: { fontWeight: 900, fontSize: 13, letterSpacing: 1, color: '#dde1f0' } }, "EDITAR JUGADOR"),
+          /*#__PURE__*/React.createElement("button", { onClick: function() { setEditCard(null); }, style: { background: 'transparent', border: 'none', color: '#6a7390', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0 } }, "×")
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 } },
+          ecp.photo
+            ? /*#__PURE__*/React.createElement("div", { style: { width: 62, height: 62, borderRadius: '50%', backgroundImage: 'url(' + ecp.photo + ')', backgroundSize: 'cover', backgroundPosition: 'center top', border: '1.5px solid #2a3252', flexShrink: 0 } })
+            : /*#__PURE__*/React.createElement("div", { style: { width: 62, height: 62, borderRadius: '50%', background: '#161c2e', border: '1.5px dashed #39FF1466', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#39FF14', fontWeight: 900, flexShrink: 0 } }, "+"),
+          /*#__PURE__*/React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 6, flex: 1 } },
+            /*#__PURE__*/React.createElement("label", { style: { background: '#39FF1418', border: '1px solid #39FF1455', color: '#39FF14', borderRadius: 6, padding: '7px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', textAlign: 'center' } }, "Subir foto",
+              /*#__PURE__*/React.createElement("input", { type: 'file', accept: 'image/*', style: { display: 'none' }, onChange: function(e) { var f = e.target.files && e.target.files[0]; if (f) uploadPlayerPhoto(ecp.id, f); e.target.value = ''; } })
+            ),
+            /*#__PURE__*/React.createElement("div", { style: { display: 'flex', gap: 6 } },
+              /*#__PURE__*/React.createElement("button", { onClick: function() { var cur = (ecp.photo && !String(ecp.photo).startsWith('data:')) ? ecp.photo : ''; dbmPrompt('URL de la foto del jugador:', cur).then(function(v) { if (v !== null) upd(ecp.id, 'photo', v.trim()); }); }, style: { flex: 1, background: 'transparent', border: '1px solid #2a2a3a', color: '#9ba3b8', borderRadius: 6, padding: '6px', fontSize: 11, fontWeight: 700, cursor: 'pointer' } }, "URL"),
+              ecp.photo && /*#__PURE__*/React.createElement("button", { onClick: function() { upd(ecp.id, 'photo', ''); }, style: { flex: 1, background: 'transparent', border: '1px solid #C62828', color: '#FF5252', borderRadius: 6, padding: '6px', fontSize: 11, fontWeight: 700, cursor: 'pointer' } }, "Quitar")
+            )
+          )
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: 'flex', gap: 10 } },
+          /*#__PURE__*/React.createElement("div", { style: _objectSpread(_objectSpread({}, fld), {}, { width: 80 }) },
+            /*#__PURE__*/React.createElement("span", { style: lbl }, "DORSAL"),
+            /*#__PURE__*/React.createElement("input", { type: 'number', defaultValue: ecp.squad_number, onBlur: function(e) { upd(ecp.id, 'squad_number', e.target.value); }, style: _objectSpread(_objectSpread({}, inp), {}, { textAlign: 'center' }) })
+          ),
+          /*#__PURE__*/React.createElement("div", { style: _objectSpread(_objectSpread({}, fld), {}, { flex: 1 }) },
+            /*#__PURE__*/React.createElement("span", { style: lbl }, "NOMBRE"),
+            /*#__PURE__*/React.createElement("input", { type: 'text', defaultValue: ecp.name, placeholder: 'Apellido, Nombre', onBlur: function(e) { upd(ecp.id, 'name', e.target.value); }, style: inp })
+          )
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: 'flex', gap: 10 } },
+          /*#__PURE__*/React.createElement("div", { style: _objectSpread(_objectSpread({}, fld), {}, { flex: 1 }) },
+            /*#__PURE__*/React.createElement("span", { style: lbl }, "POSICIÓN"),
+            /*#__PURE__*/React.createElement("select", { value: normPos(ecp.position), onChange: function(e) { upd(ecp.id, 'position', e.target.value); }, style: _objectSpread(_objectSpread({}, inp), {}, { cursor: 'pointer' }) },
+              POS.map(function(x) { return /*#__PURE__*/React.createElement("option", { key: x, value: x }, getPosLabel(x)); })
+            )
+          ),
+          /*#__PURE__*/React.createElement("div", { style: _objectSpread(_objectSpread({}, fld), {}, { width: 110 }) },
+            /*#__PURE__*/React.createElement("span", { style: lbl }, "ALTURA (cm)"),
+            /*#__PURE__*/React.createElement("input", { type: 'number', min: 140, max: 220, defaultValue: ecp.height || '', placeholder: '—', onBlur: function(e) { upd(ecp.id, 'height', e.target.value); }, style: _objectSpread(_objectSpread({}, inp), {}, { textAlign: 'center' }) })
+          )
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: 'flex', gap: 8, marginTop: 6 } },
+          /*#__PURE__*/React.createElement("button", { onClick: function() { dbmConfirm("¿Eliminar a " + (ecp.name || "jugador #" + ecp.squad_number) + "?", { danger: true }).then(function(ok) { if (ok) db.players.delete(ecp.id).then(function() { getSquad(selId).then(setPls); setEditCard(null); }); }); }, style: { background: '#C6282822', border: '1px solid #C62828', color: '#FF5252', borderRadius: 8, padding: '10px', fontSize: 12, fontWeight: 800, cursor: 'pointer', flex: 1, letterSpacing: 0.5 } }, "ELIMINAR"),
+          /*#__PURE__*/React.createElement("button", { onClick: function() { setEditCard(null); }, style: { background: '#39FF14', border: 'none', color: '#07070e', borderRadius: 8, padding: '10px', fontSize: 12, fontWeight: 900, cursor: 'pointer', flex: 2, letterSpacing: 1 } }, "LISTO")
+        )
+      )
+    );
+  })(),
   squadView === 'list' && /*#__PURE__*/React.createElement("table", {
     style: {
       width: '100%',
