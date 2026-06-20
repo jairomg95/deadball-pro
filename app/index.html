@@ -12944,6 +12944,7 @@ function SquadEditorScreen(_ref37) {
     fl = _useState130[0],
     setFl = _useState130[1];
   var _sq = useState(''); var sq = _sq[0]; var setSq = _sq[1];
+  var _sv = useState('cards'); var squadView = _sv[0]; var setSquadView = _sv[1];
   var plsView = sq ? pls.filter(function (p) {
     var t = sq.toLowerCase();
     return String(p.name || '').toLowerCase().indexOf(t) > -1 || String(p.squad_number || '').indexOf(t) > -1 || String(p.position || '').toLowerCase().indexOf(t) > -1;
@@ -13186,6 +13187,37 @@ function SquadEditorScreen(_ref37) {
     if (e.key === 'Escape') setEd(null);
   }
   var filled = pls.filter(p => p.name.trim()).length;
+  // Agrupación por línea (para la vista de cartas)
+  function posGroup(pos) {
+    var x = String(pos || '').toUpperCase();
+    if (x.indexOf('GK') > -1 || x.indexOf('POR') > -1) return 'POR';
+    if (/(CB|LB|RB|LWB|RWB|WB|SW|^DF|DEF)/.test(x)) return 'DEF';
+    if (/(CDM|CAM|^CM|^DM|^AM|LM|RM|MED|^MC|MID)/.test(x)) return 'MED';
+    if (/(ST|CF|SS|LW|RW|^FW|DEL|^DL)/.test(x)) return 'DEL';
+    return 'MED';
+  }
+  var POS_ORDER = ['POR', 'DEF', 'MED', 'DEL'];
+  var POS_LABEL = { POR: 'PORTEROS', DEF: 'DEFENSAS', MED: 'MEDIOS', DEL: 'DELANTEROS' };
+  function playerCard(p) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: p.id,
+      style: { background: '#0e0e1a', border: '1px solid #1c1c2e', borderTop: '2px solid #39FF14', borderRadius: 9, padding: '8px 6px 7px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }
+    },
+      /*#__PURE__*/React.createElement("span", { style: { position: 'absolute', top: 5, left: 7, fontFamily: "'DBMono','Courier New',monospace", fontWeight: 900, fontSize: 13, color: '#39FF14' } }, p.squad_number),
+      /*#__PURE__*/React.createElement("span", { style: { position: 'absolute', top: 6, right: 7, fontSize: 8, fontWeight: 800, color: '#8a93b0', letterSpacing: 0.3 } }, posGroup(p.position)),
+      /*#__PURE__*/React.createElement("label", { title: 'Subir foto de ' + (p.name || 'jugador'), style: { cursor: 'pointer', margin: '13px 0 5px' } },
+        p.photo
+          ? /*#__PURE__*/React.createElement("div", { style: { width: 50, height: 50, borderRadius: '50%', backgroundImage: 'url(' + p.photo + ')', backgroundSize: 'cover', backgroundPosition: 'center top', border: '1.5px solid #2a3252', boxShadow: 'inset 0 -4px 8px rgba(0,0,0,0.35)' } })
+          : /*#__PURE__*/React.createElement("div", { style: { width: 50, height: 50, borderRadius: '50%', background: '#161c2e', border: '1.5px dashed #39FF1466', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, fontWeight: 900, color: '#39FF14' } }, '+'),
+        /*#__PURE__*/React.createElement("input", { type: 'file', accept: 'image/*', style: { display: 'none' }, onChange: function(e) { var f = e.target.files && e.target.files[0]; if (f) uploadPlayerPhoto(p.id, f); e.target.value = ''; } })
+      ),
+      /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: '#e6e9f5', textAlign: 'center', lineHeight: 1.1, minHeight: 24 } }, p.name || '—'),
+      /*#__PURE__*/React.createElement("span", { style: { fontSize: 8.5, color: '#5a6486', marginTop: 2 } }, p.height ? p.height + ' cm' : '—')
+    );
+  }
+  function pillStyle(active) {
+    return { background: active ? '#39FF1422' : 'transparent', border: '1px solid ' + (active ? '#39FF14' : '#2a2a3a'), color: active ? '#39FF14' : '#9ba3b8', borderRadius: 6, padding: '5px 12px', fontSize: 11, fontWeight: 700, letterSpacing: 0.5, cursor: 'pointer' };
+  }
   var inp = {
     background: '#07070e',
     border: '1px solid #2a2a3a',
@@ -13401,7 +13433,24 @@ function SquadEditorScreen(_ref37) {
   sq && /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 11, color: '#6a6e8e', marginBottom: 4 }
   }, plsView.length, " de ", pls.length, " jugadores"),
-  /*#__PURE__*/React.createElement("table", {
+  /*#__PURE__*/React.createElement("div", {
+    style: { display: 'flex', gap: 6, margin: '8px 0 12px' }
+  },
+    /*#__PURE__*/React.createElement("button", { onClick: function() { setSquadView('cards'); }, style: pillStyle(squadView === 'cards') }, "▦ Cartas"),
+    /*#__PURE__*/React.createElement("button", { onClick: function() { setSquadView('list'); }, style: pillStyle(squadView === 'list') }, "☰ Lista")
+  ),
+  squadView === 'cards' && /*#__PURE__*/React.createElement("div", { style: { maxWidth: 560 } },
+    /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: '#3a3a5a', marginBottom: 10 } }, "Toca la foto para subirla \xB7 cambia a Lista para editar nombres y dorsales"),
+    POS_ORDER.map(function(g) {
+      var arr = plsView.filter(function(p) { return posGroup(p.position) === g; }).sort(function(a, b) { return (a.squad_number || 0) - (b.squad_number || 0); });
+      if (!arr.length) return null;
+      return /*#__PURE__*/React.createElement("div", { key: g, style: { marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 9, letterSpacing: 2.5, fontWeight: 700, color: '#39FF14', margin: '2px 0 9px' } }, POS_LABEL[g] + " \xB7 " + arr.length),
+        /*#__PURE__*/React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(94px, 1fr))', gap: 8 } }, arr.map(playerCard))
+      );
+    })
+  ),
+  squadView === 'list' && /*#__PURE__*/React.createElement("table", {
     style: {
       width: '100%',
       borderCollapse: 'collapse',
