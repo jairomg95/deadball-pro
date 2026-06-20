@@ -527,6 +527,7 @@ button:active:not(:disabled){transform:scale(0.96)}
 .dbm-card{transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease}
 @media (hover:hover){.dbm-card:hover{transform:translateY(-3px);box-shadow:0 6px 16px rgba(0,0,0,0.45)}}
 input,select,textarea{-webkit-appearance:none;appearance:none;font-size:16px !important}
+select.dbm-mini-select{font-size:11px !important;letter-spacing:0.2px}
 @media (hover:none) and (pointer:coarse){
   /* Touch devices: aumentar tamaños mínimos para iPad */
   button{min-height:32px}
@@ -4370,6 +4371,13 @@ function InteractiveCanvas(_ref8) {
   // Resolver posiciones según fase activa
   var phases = play.canvas_data.phases || [];
   var activePhase = phases.find(p => p.id === activePhaseId) || phases[0];
+  var curPhaseIdx = phases.findIndex(function(p){ return p.id === activePhaseId; });
+  if (curPhaseIdx < 0) curPhaseIdx = 0;
+  var annVisible = function(a){
+    var b = (a && a.bornAt != null) ? a.bornAt : 0;
+    var d = (a && a.diesAt != null) ? a.diesAt : Infinity;
+    return curPhaseIdx >= b && curPhaseIdx < d;
+  };
   var rolePositions = Object.fromEntries(play.canvas_data.roles.map(r => {
     var _activePhase$position, _phasePos$x, _phasePos$y;
     // Si hay datos interpolados, prevalecen (animación en curso)
@@ -4752,8 +4760,8 @@ function InteractiveCanvas(_ref8) {
     dragging: !!ballDrag,
     onPointerDown: readOnly ? undefined : handleBallPointerDown
   }),
-  // ── ANOTACIONES ──
-  (play.canvas_data.annotations || []).map(function(a) {
+  // ── ANOTACIONES ── (solo las vivas en el frame actual)
+  (play.canvas_data.annotations || []).filter(annVisible).map(function(a) {
     var sw = (a.size || 1) * 2.2;
     var isSel = selectedAnnotId === a.id;
     var dragOff = (annDrag && annDrag.id === a.id) ? annDrag : null;
@@ -9513,7 +9521,10 @@ function MatchDayScreen(_ref28) {
     if (!play) return;
     pushUndo();
     var anns = play.canvas_data.annotations || [];
-    var newAnn = _objectSpread({ id: 'an_' + uid().slice(0, 6) }, annot);
+    var _addPhs = play.canvas_data.phases || [];
+    var _addIdx = _addPhs.findIndex(function(p){ return p.id === activePhaseId; });
+    if (_addIdx < 0) _addIdx = 0;
+    var newAnn = _objectSpread({ id: 'an_' + uid().slice(0, 6), bornAt: _addIdx }, annot);
     var newPlay = _objectSpread(_objectSpread({}, play), {}, {
       canvas_data: _objectSpread(_objectSpread({}, play.canvas_data), {}, {
         annotations: [].concat(anns, [newAnn])
@@ -9540,7 +9551,20 @@ function MatchDayScreen(_ref28) {
     var play = plays.find(p => p.id === pid);
     if (!play) return;
     pushUndo();
-    var anns = (play.canvas_data.annotations || []).filter(a => a.id !== annId);
+    var allAnns = play.canvas_data.annotations || [];
+    var _delPhs = play.canvas_data.phases || [];
+    var _delIdx = _delPhs.findIndex(function(p){ return p.id === activePhaseId; });
+    if (_delIdx < 0) _delIdx = 0;
+    var target = allAnns.find(function(a){ return a.id === annId; });
+    var bornAt = (target && target.bornAt != null) ? target.bornAt : 0;
+    var anns;
+    if (_delIdx <= bornAt) {
+      // Borrada en (o antes de) su frame de origen -> eliminar por completo.
+      anns = allAnns.filter(function(a){ return a.id !== annId; });
+    } else {
+      // Borrada en un frame posterior -> termina su vida ahí (sigue en los anteriores).
+      anns = allAnns.map(function(a){ return a.id === annId ? _objectSpread(_objectSpread({}, a), {}, { diesAt: _delIdx }) : a; });
+    }
     var newPlay = _objectSpread(_objectSpread({}, play), {}, {
       canvas_data: _objectSpread(_objectSpread({}, play.canvas_data), {}, {
         annotations: anns
@@ -10881,6 +10905,7 @@ function MatchDayScreen(_ref28) {
     value: situFilter || "",
     onChange: function(e) { setSituFilter(e.target.value || null); },
     title: "Filtrar jugadas por tipo",
+    className: "dbm-mini-select",
     style: {
       width: "100%",
       background: situFilter ? ((PLAY_TYPES.find(function(t){ return t.id === situFilter; }) || {}).defaultColor || "#39FF14") + "18" : "#0e0e1a",
