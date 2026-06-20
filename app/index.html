@@ -3961,50 +3961,55 @@ function PitchBg(_ref5) {
   if (full) {
     var E = React.createElement;
     // Fondo común (césped + franjas + degradados)
+    var FULLH = 1050;
     var bg = [
-      E("rect", { key: 'fg0', width: W, height: H, fill: "url(#gp2)" }),
-      [0,1,2,3,4,5,6,7].map(function(i){ return E("rect", { key: 'fs'+i, x: 0, y: i*64, width: W, height: 32, fill: i%2===0 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)" }); }),
-      E("rect", { key: 'fg1', width: W, height: H, fill: "url(#grass)" }),
-      E("rect", { key: 'fg2', width: W, height: H, fill: "url(#gl2)" }),
-      E("rect", { key: 'fg3', width: W, height: H, fill: "url(#vignette)", pointerEvents: "none" })
+      E("rect", { key: 'fg0', width: W, height: FULLH, fill: "url(#gp2)" }),
+      [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(function(i){ return E("rect", { key: 'fs'+i, x: 0, y: i*65.6, width: W, height: 32.8, fill: i%2===0 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)" }); }),
+      E("rect", { key: 'fg1', width: W, height: FULLH, fill: "url(#grass)" }),
+      E("rect", { key: 'fg2', width: W, height: FULLH, fill: "url(#gl2)" }),
+      E("rect", { key: 'fg3', width: W, height: FULLH, fill: "url(#vignette)", pointerEvents: "none" })
     ];
-    // Geometría de campo completo (orientación vertical, ataque hacia arriba)
-    var FY = 44, FB = 456, MID = (FY+FB)/2;
-    var gLx = 303, gRx = 377;            // ancho de portería
-    var fpaL = 138, fpaR = 542;          // área grande
-    var f6L = 248, f6R = 432;            // área pequeña
-    var paTopB = 109, p6TopB = 66, spTop = 87;       // profundidades arriba
-    var paBotT = FB-(paTopB-FY), p6BotT = FB-(p6TopB-FY), spBot = FB-(spTop-FY);
+    // Geometría de campo completo a escala real (680x1050 ≈ 10px/m, vertical, ataque arriba)
+    var FY = 14, FB = 1036, MID = (FY+FB)/2;   // líneas de fondo (arriba/abajo) + medio campo
+    var gLx = 303, gRx = 377;                  // ancho de portería (~7.3m)
+    var fpaL = 138, fpaR = 542;                // área grande (40.3m de ancho)
+    var f6L = 249, f6R = 431;                  // área pequeña (18.3m)
+    var paD = 165, p6D = 55, spD = 110;        // profundidades: área(16.5m), 5.5m, penalti(11m)
+    var paTopB = FY + paD, p6TopB = FY + p6D, spTop = FY + spD;
+    var paBotT = FB - paD, p6BotT = FB - p6D, spBot = FB - spD;
+    var R = 92;                                // radio 9.15m
+    // x de corte de los semicírculos del área con la línea del área (dist al spot = paD-spD=55)
+    var aHalf = Math.round(Math.sqrt(R*R - (paD-spD)*(paD-spD)));  // ≈ 74
     var marks = [
       // Redes de portería (arriba/abajo)
-      E("rect", { key:'gt', x:gLx, y:FY-12, width:gRx-gLx, height:12, fill:"rgba(255,255,255,0.07)", stroke:ln, strokeWidth:1.5 }),
-      E("rect", { key:'gb', x:gLx, y:FB, width:gRx-gLx, height:12, fill:"rgba(255,255,255,0.07)", stroke:ln, strokeWidth:1.5 }),
+      E("rect", { key:'gt', x:gLx, y:FY-14, width:gRx-gLx, height:14, fill:"rgba(255,255,255,0.07)", stroke:ln, strokeWidth:1.6 }),
+      E("rect", { key:'gb', x:gLx, y:FB, width:gRx-gLx, height:14, fill:"rgba(255,255,255,0.07)", stroke:ln, strokeWidth:1.6 }),
       // Perímetro
-      E("rect", { key:'per', x:0, y:FY, width:W, height:FB-FY, fill:"none", stroke:ln, strokeWidth:2.2 }),
-      // Línea de medio campo + círculo central + punto
-      E("line", { key:'mid', x1:0, y1:MID, x2:W, y2:MID, stroke:ln, strokeWidth:2 }),
-      E("ellipse", { key:'cc', cx:340, cy:MID, rx:88, ry:40, fill:"none", stroke:ln, strokeWidth:2 }),
-      E("circle", { key:'cs', cx:340, cy:MID, r:4, fill:th }),
+      E("rect", { key:'per', x:0, y:FY, width:W, height:FB-FY, fill:"none", stroke:ln, strokeWidth:2.4 }),
+      // Línea de medio campo + círculo central (redondo) + punto
+      E("line", { key:'mid', x1:0, y1:MID, x2:W, y2:MID, stroke:ln, strokeWidth:2.2 }),
+      E("circle", { key:'cc', cx:340, cy:MID, r:R, fill:"none", stroke:ln, strokeWidth:2.2 }),
+      E("circle", { key:'cs', cx:340, cy:MID, r:5, fill:th }),
       // Área grande arriba / abajo
-      E("rect", { key:'pat', x:fpaL, y:FY, width:fpaR-fpaL, height:paTopB-FY, fill:"none", stroke:ln, strokeWidth:2 }),
-      E("rect", { key:'pab', x:fpaL, y:paBotT, width:fpaR-fpaL, height:FB-paBotT, fill:"none", stroke:ln, strokeWidth:2 }),
+      E("rect", { key:'pat', x:fpaL, y:FY, width:fpaR-fpaL, height:paD, fill:"none", stroke:ln, strokeWidth:2.2 }),
+      E("rect", { key:'pab', x:fpaL, y:paBotT, width:fpaR-fpaL, height:paD, fill:"none", stroke:ln, strokeWidth:2.2 }),
       // Área pequeña arriba / abajo
-      E("rect", { key:'6t', x:f6L, y:FY, width:f6R-f6L, height:p6TopB-FY, fill:"none", stroke:th, strokeWidth:1.5 }),
-      E("rect", { key:'6b', x:f6L, y:p6BotT, width:f6R-f6L, height:FB-p6BotT, fill:"none", stroke:th, strokeWidth:1.5 }),
+      E("rect", { key:'6t', x:f6L, y:FY, width:f6R-f6L, height:p6D, fill:"none", stroke:th, strokeWidth:1.7 }),
+      E("rect", { key:'6b', x:f6L, y:p6BotT, width:f6R-f6L, height:p6D, fill:"none", stroke:th, strokeWidth:1.7 }),
       // Puntos de penalti
-      E("circle", { key:'spt', cx:340, cy:spTop, r:4.5, fill:th }),
-      E("circle", { key:'spb', cx:340, cy:spBot, r:4.5, fill:th }),
-      // Semicírculos del área (frontal)
-      E("path", { key:'art', d:"M 277 "+paTopB+" A 80 36 0 0 0 403 "+paTopB, fill:"none", stroke:th, strokeWidth:1.5 }),
-      E("path", { key:'arb', d:"M 277 "+paBotT+" A 80 36 0 0 1 403 "+paBotT, fill:"none", stroke:th, strokeWidth:1.5 }),
+      E("circle", { key:'spt', cx:340, cy:spTop, r:5, fill:th }),
+      E("circle", { key:'spb', cx:340, cy:spBot, r:5, fill:th }),
+      // Semicírculos del área (redondos, radio real)
+      E("path", { key:'art', d:"M "+(340-aHalf)+" "+paTopB+" A "+R+" "+R+" 0 0 0 "+(340+aHalf)+" "+paTopB, fill:"none", stroke:th, strokeWidth:1.7 }),
+      E("path", { key:'arb', d:"M "+(340-aHalf)+" "+paBotT+" A "+R+" "+R+" 0 0 1 "+(340+aHalf)+" "+paBotT, fill:"none", stroke:th, strokeWidth:1.7 }),
       // Córners (4 esquinas)
-      E("path", { key:'ctl', d:"M 0 "+(FY+11)+" A 11 11 0 0 0 11 "+FY, fill:"none", stroke:ln, strokeWidth:1.4 }),
-      E("path", { key:'ctr', d:"M "+(W-11)+" "+FY+" A 11 11 0 0 0 "+W+" "+(FY+11), fill:"none", stroke:ln, strokeWidth:1.4 }),
-      E("path", { key:'cbl', d:"M 0 "+(FB-11)+" A 11 11 0 0 1 11 "+FB, fill:"none", stroke:ln, strokeWidth:1.4 }),
-      E("path", { key:'cbr', d:"M "+W+" "+(FB-11)+" A 11 11 0 0 1 "+(W-11)+" "+FB, fill:"none", stroke:ln, strokeWidth:1.4 }),
+      E("path", { key:'ctl', d:"M 0 "+(FY+14)+" A 14 14 0 0 0 14 "+FY, fill:"none", stroke:ln, strokeWidth:1.6 }),
+      E("path", { key:'ctr', d:"M "+(W-14)+" "+FY+" A 14 14 0 0 0 "+W+" "+(FY+14), fill:"none", stroke:ln, strokeWidth:1.6 }),
+      E("path", { key:'cbl', d:"M 0 "+(FB-14)+" A 14 14 0 0 1 14 "+FB, fill:"none", stroke:ln, strokeWidth:1.6 }),
+      E("path", { key:'cbr', d:"M "+W+" "+(FB-14)+" A 14 14 0 0 1 "+(W-14)+" "+FB, fill:"none", stroke:ln, strokeWidth:1.6 }),
       // Marca del punto de córner según zona (arriba)
-      zone === 'corner_r' && E("line", { key:'mcr', x1:W, y1:FY-3, x2:W, y2:FY+22, stroke:"rgba(255,80,80,0.75)", strokeWidth:3 }),
-      zone === 'corner_l' && E("line", { key:'mcl', x1:0, y1:FY-3, x2:0, y2:FY+22, stroke:"rgba(255,80,80,0.75)", strokeWidth:3 })
+      zone === 'corner_r' && E("line", { key:'mcr', x1:W, y1:FY-3, x2:W, y2:FY+28, stroke:"rgba(255,80,80,0.75)", strokeWidth:3 }),
+      zone === 'corner_l' && E("line", { key:'mcl', x1:0, y1:FY-3, x2:0, y2:FY+28, stroke:"rgba(255,80,80,0.75)", strokeWidth:3 })
     ];
     return E(React.Fragment, null, bg, marks);
   }
@@ -4160,7 +4165,7 @@ var Token = React.memo(function Token(_ref6) {
     dragging = _ref6$dragging === void 0 ? false : _ref6$dragging,
     _ref6$team = _ref6.team,
     team = _ref6$team === void 0 ? 'own' : _ref6$team;
-  var cx = role.x * W, cy = role.y * H;
+  var cx = role.x * W, cy = role.y * (_ref6.fh || H);
   var isRiv = team === 'rival' || role.team === 'rival';
   var hasN = num != null;
   var hasPhoto = !!photo && hasN;
@@ -4284,7 +4289,7 @@ function Ball(_ref7) {
     _ref7$dragging = _ref7.dragging,
     dragging = _ref7$dragging === void 0 ? false : _ref7$dragging;
   var cx = x * W,
-    cy = y * H;
+    cy = y * (_ref7.fh || H);
   return /*#__PURE__*/React.createElement("g", {
     transform: "translate(".concat(cx, ",").concat(cy, ")"),
     onPointerDown: onPointerDown,
@@ -4400,6 +4405,9 @@ function InteractiveCanvas(_ref8) {
     };
   }, []);
   if (!play) return null;
+  // Modo de campo: medio (680x500) o completo a escala real (680x1050)
+  var fieldFull = !!(play.canvas_data && play.canvas_data.field_full);
+  var FH = fieldFull ? 1050 : H;
   // Resolver posiciones según fase activa
   var phases = play.canvas_data.phases || [];
   var activePhase = phases.find(p => p.id === activePhaseId) || phases[0];
@@ -4440,7 +4448,7 @@ function InteractiveCanvas(_ref8) {
     };
     var loc = pt.matrixTransform(ctm.inverse());
     var x = clamp(loc.x / W, 0, 1),
-      y = clamp(loc.y / H, 0, 1);
+      y = clamp(loc.y / FH, 0, 1);
     // Snap to 0.05 grid si Shift
     if (e.shiftKey) {
       var G = 0.05;
@@ -4659,7 +4667,7 @@ function InteractiveCanvas(_ref8) {
   }, []);
   return /*#__PURE__*/React.createElement("svg", {
     ref: svgRef,
-    viewBox: "0 0 ".concat(W, " ").concat(H),
+    viewBox: "0 0 ".concat(W, " ").concat(FH),
     style: {
       width: '100%',
       height: '100%',
@@ -4687,14 +4695,14 @@ function InteractiveCanvas(_ref8) {
     x1: v * W,
     y1: 0,
     x2: v * W,
-    y2: H,
+    y2: FH,
     stroke: "#39FF14",
     strokeWidth: 0.5
   }), /*#__PURE__*/React.createElement("line", {
     x1: 0,
-    y1: v * H,
+    y1: v * FH,
     x2: W,
-    y2: v * H,
+    y2: v * FH,
     stroke: "#39FF14",
     strokeWidth: 0.5
   })))), play.canvas_data.roles.flatMap((role, ri) => (role.arrows || []).map((arrow, ai) => {
@@ -4711,9 +4719,9 @@ function InteractiveCanvas(_ref8) {
     var Rf = Math.round((role.team === 'rival' ? 26 : 28) * tokenScale),
       Rt = Math.round((to.team === 'rival' ? 26 : 28) * tokenScale);
     var fx = fromPos.x * W,
-      fy = fromPos.y * H,
+      fy = fromPos.y * FH,
       tx = toPos.x * W,
-      ty = toPos.y * H;
+      ty = toPos.y * FH;
     var dxv = tx - fx,
       dyv = ty - fy,
       d = Math.sqrt(dxv * dxv + dyv * dyv) || 1,
@@ -4784,6 +4792,7 @@ function InteractiveCanvas(_ref8) {
       R: Math.round(baseR * tokenScale),
       dragging: isDragging,
       team: role.team,
+      fh: FH,
       onPointerDown: readOnly ? undefined : e => handlePointerDown(role, e)
     });
   }), ballPos && /*#__PURE__*/React.createElement(Ball, {
@@ -4791,6 +4800,7 @@ function InteractiveCanvas(_ref8) {
     y: ballPos.y,
     R: Math.round(14 * tokenScale),
     dragging: !!ballDrag,
+    fh: FH,
     onPointerDown: readOnly ? undefined : handleBallPointerDown
   }),
   // ── ANOTACIONES ── (solo las vivas en el frame actual)
@@ -4799,10 +4809,10 @@ function InteractiveCanvas(_ref8) {
     var isSel = selectedAnnotId === a.id;
     var dragOff = (annDrag && annDrag.id === a.id) ? annDrag : null;
     var dx = dragOff ? dragOff.dx * W : 0;
-    var dy = dragOff ? dragOff.dy * H : 0;
+    var dy = dragOff ? dragOff.dy * FH : 0;
     if (a.type === 'arrow') {
-      var x1 = a.x1 * W + dx, y1 = a.y1 * H + dy;
-      var x2 = a.x2 * W + dx, y2 = a.y2 * H + dy;
+      var x1 = a.x1 * W + dx, y1 = a.y1 * FH + dy;
+      var x2 = a.x2 * W + dx, y2 = a.y2 * FH + dy;
       return /*#__PURE__*/React.createElement("g", {
         key: a.id,
         onPointerDown: readOnly ? undefined : function(e) { startAnnotationDrag(a.id, e); },
@@ -4840,14 +4850,14 @@ function InteractiveCanvas(_ref8) {
       );
     }
     if (a.type === 'rect') {
-      var rx = a.x * W + dx, ry = a.y * H + dy;
+      var rx = a.x * W + dx, ry = a.y * FH + dy;
       return /*#__PURE__*/React.createElement("g", {
         key: a.id,
         onPointerDown: readOnly ? undefined : function(e) { startAnnotationDrag(a.id, e); },
         style: { cursor: readOnly ? 'default' : 'move' }
       },
         /*#__PURE__*/React.createElement("rect", {
-          x: rx, y: ry, width: a.w * W, height: a.h * H,
+          x: rx, y: ry, width: a.w * W, height: a.h * FH,
           fill: a.color + '22', stroke: a.color, strokeWidth: sw,
           strokeDasharray: isSel ? "6,4" : "none",
           rx: 3
@@ -4855,7 +4865,7 @@ function InteractiveCanvas(_ref8) {
       );
     }
     if (a.type === 'circle') {
-      var cx = a.cx * W + dx, cy = a.cy * H + dy;
+      var cx = a.cx * W + dx, cy = a.cy * FH + dy;
       var r = a.r * Math.min(W, H);
       return /*#__PURE__*/React.createElement("g", {
         key: a.id,
@@ -4870,7 +4880,7 @@ function InteractiveCanvas(_ref8) {
       );
     }
     if (a.type === 'text') {
-      var tx = a.x * W + dx, ty = a.y * H + dy;
+      var tx = a.x * W + dx, ty = a.y * FH + dy;
       var fs = 12 + (a.size || 1) * 4;
       // Estimar ancho del texto para hit-area (pessimist: 0.65 * fs por char)
       var hitW = Math.max(40, (a.text || '').length * fs * 0.65 + 12);
@@ -4922,24 +4932,24 @@ function InteractiveCanvas(_ref8) {
     opacity: 0.7
   },
     drawing.type === 'arrow' && /*#__PURE__*/React.createElement("line", {
-      x1: drawing.x1 * W, y1: drawing.y1 * H,
-      x2: drawing.x2 * W, y2: drawing.y2 * H,
+      x1: drawing.x1 * W, y1: drawing.y1 * FH,
+      x2: drawing.x2 * W, y2: drawing.y2 * FH,
       stroke: drawing.color, strokeWidth: (drawing.size || 1) * 2.2,
       strokeLinecap: "round",
       strokeDasharray: "4,3"
     }),
     drawing.type === 'rect' && /*#__PURE__*/React.createElement("rect", {
       x: Math.min(drawing.x1, drawing.x2) * W,
-      y: Math.min(drawing.y1, drawing.y2) * H,
+      y: Math.min(drawing.y1, drawing.y2) * FH,
       width: Math.abs(drawing.x2 - drawing.x1) * W,
-      height: Math.abs(drawing.y2 - drawing.y1) * H,
+      height: Math.abs(drawing.y2 - drawing.y1) * FH,
       fill: drawing.color + '22', stroke: drawing.color,
       strokeWidth: (drawing.size || 1) * 2.2,
       strokeDasharray: "4,3"
     }),
     drawing.type === 'circle' && /*#__PURE__*/React.createElement("circle", {
-      cx: drawing.x1 * W, cy: drawing.y1 * H,
-      r: Math.hypot((drawing.x2 - drawing.x1) * W, (drawing.y2 - drawing.y1) * H),
+      cx: drawing.x1 * W, cy: drawing.y1 * FH,
+      r: Math.hypot((drawing.x2 - drawing.x1) * W, (drawing.y2 - drawing.y1) * FH),
       fill: drawing.color + '22', stroke: drawing.color,
       strokeWidth: (drawing.size || 1) * 2.2,
       strokeDasharray: "4,3"
