@@ -11527,6 +11527,7 @@ active && /*#__PURE__*/React.createElement("button", {
       background: '#09091a',
       borderTop: '1px solid #12122a',
       padding: '4px 8px',
+      paddingBottom: 'calc(6px + env(safe-area-inset-bottom))',
       minHeight: 36,
       flexShrink: 0,
       display: 'flex',
@@ -11833,7 +11834,7 @@ active && /*#__PURE__*/React.createElement("button", {
   ), (subs.length > 0 || rivalSubs.length > 0) && /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'absolute',
-      bottom: 8,
+      bottom: 'calc(8px + env(safe-area-inset-bottom))',
       left: 148,
       background: 'rgba(9,9,18,0.95)',
       border: '1px solid #1a1a2e',
