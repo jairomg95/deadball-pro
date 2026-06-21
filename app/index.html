@@ -13,6 +13,7 @@
 <script src="react.production.min.js"></script>
 <script src="react-dom.production.min.js"></script>
 <script src="dexie.min.js"></script>
+<script defer src="three.min.js"></script>
 <script>
 /* Blindaje de localStorage: en modo privado de Safari / almacenamiento bloqueado,
    localStorage lanza excepción y tumbaría la app. Si no está disponible, se sustituye
@@ -4335,6 +4336,92 @@ function Ball(_ref7) {
 // ══════════════════════════════════════════════════════════════════════════════
 // INTERACTIVE CANVAS — drag tokens, animar fases, cambiar posiciones
 // ══════════════════════════════════════════════════════════════════════════════
+function Pizarra3D(_p) {
+  var play = _p.play, ownAsgn = _p.ownAsgn || {}, rivAsgn = _p.rivAsgn || {}, activePhaseId = _p.activePhaseId, interpData = _p.interpData;
+  var mountRef = useRef(null);
+  var dataRef = useRef({});
+  var phases = (play.canvas_data.phases) || [];
+  var activePhase = phases.find(function(p){ return p.id === activePhaseId; }) || phases[0];
+  var rp = {};
+  (play.canvas_data.roles || []).forEach(function(r){
+    var ip = interpData && interpData.positions && interpData.positions[r.role_key];
+    if (ip) { rp[r.role_key] = { x: ip.x, y: ip.y }; }
+    else { var pp = activePhase && activePhase.positions && activePhase.positions[r.role_key]; rp[r.role_key] = { x: (pp && pp.x != null) ? pp.x : r.x, y: (pp && pp.y != null) ? pp.y : r.y }; }
+  });
+  var bp = (interpData && interpData.ball !== undefined) ? interpData.ball : ((activePhase && activePhase.ball) || null);
+  dataRef.current.rp = rp; dataRef.current.bp = bp;
+  useEffect(function(){
+    if (typeof THREE === 'undefined') return;
+    var mount = mountRef.current; if (!mount) return;
+    var W = mount.clientWidth || 600, Hh = mount.clientHeight || 400;
+    var FW = 68, FD = 64;
+    var scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0e12); scene.fog = new THREE.Fog(0x0a0e12, 110, 240);
+    var cam = new THREE.PerspectiveCamera(45, W/Hh, 0.1, 600);
+    var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(W, Hh); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    mount.appendChild(renderer.domElement);
+    scene.add(new THREE.HemisphereLight(0x9ec4ff, 0x2a3b22, 0.9));
+    var dir = new THREE.DirectionalLight(0xffffff, 0.5); dir.position.set(20, 50, 30); scene.add(dir);
+    var pitch = new THREE.Mesh(new THREE.PlaneGeometry(FW+10, FD+10), new THREE.MeshLambertMaterial({ color: 0x1f7a3a }));
+    pitch.rotation.x = -Math.PI/2; pitch.position.set(0, 0, FD/2); scene.add(pitch);
+    for (var s=0;s<9;s++){ var stp = new THREE.Mesh(new THREE.PlaneGeometry(FW+10, 8), new THREE.MeshLambertMaterial({ color: s%2?0x23843f:0x1c7037 })); stp.rotation.x=-Math.PI/2; stp.position.set(0,0.01,s*8); scene.add(stp); }
+    var lpos = []; function L(ax,az,bx,bz){ lpos.push(ax,0.06,az,bx,0.06,bz); }
+    var hw = FW/2;
+    L(-hw,0,hw,0); L(-hw,FD,hw,FD); L(-hw,0,-hw,FD); L(hw,0,hw,FD);
+    L(-20.16,0,-20.16,16.5); L(20.16,0,20.16,16.5); L(-20.16,16.5,20.16,16.5);
+    L(-9.16,0,-9.16,5.5); L(9.16,0,9.16,5.5); L(-9.16,5.5,9.16,5.5);
+    var pr=null; for(var a=-1.15;a<=1.15;a+=0.1){ var px=Math.sin(a)*9.15,pz=11-Math.cos(a)*9.15; if(pz>16.5){ if(pr)L(pr[0],pr[1],px,pz); pr=[px,pz]; } else pr=null; }
+    var lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lpos,3));
+    scene.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:0.8 })));
+    [[-3.66,0],[3.66,0]].forEach(function(p){ var po=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,3,8), new THREE.MeshLambertMaterial({color:0xffffff})); po.position.set(p[0],1.5,0); scene.add(po); });
+    var bar=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,7.32,8), new THREE.MeshLambertMaterial({color:0xffffff})); bar.rotation.z=Math.PI/2; bar.position.set(0,3,0); scene.add(bar);
+    function numSprite(n,col){ var cv=document.createElement('canvas'); cv.width=cv.height=128; var x=cv.getContext('2d'); x.fillStyle=col; x.beginPath(); x.arc(64,64,58,0,7); x.fill(); x.strokeStyle='#ffffff'; x.lineWidth=7; x.stroke(); x.fillStyle='#ffffff'; x.font='bold 70px Arial'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(String(n),64,70); return new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(cv), depthTest:false })); }
+    var tokens = {};
+    (play.canvas_data.roles || []).forEach(function(r){
+      var isRiv = r.team === 'rival';
+      var col = isRiv ? 0xe23b3b : 0x2b6fff;
+      var g = new THREE.Group();
+      var cyl = new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,0.5,24), new THREE.MeshLambertMaterial({ color: col })); cyl.position.y=0.25; g.add(cyl);
+      var asg = isRiv ? rivAsgn[r.role_key] : ownAsgn[r.role_key];
+      var num = (asg && asg.squad_number != null) ? asg.squad_number : '';
+      var ns = numSprite(num, '#'+col.toString(16).padStart(6,'0')); ns.scale.set(3.4,3.4,1); ns.position.y=2.4; g.add(ns);
+      scene.add(g); tokens[r.role_key] = g;
+    });
+    var ball = new THREE.Mesh(new THREE.SphereGeometry(0.55,18,18), new THREE.MeshLambertMaterial({ color:0xffffff })); scene.add(ball);
+    var yaw=0, pit=0.95, R=80, tgt=new THREE.Vector3(0,0,FD*0.42);
+    function upd(){ cam.position.set(tgt.x+R*Math.cos(pit)*Math.sin(yaw), tgt.y+R*Math.sin(pit), tgt.z+R*Math.cos(pit)*Math.cos(yaw)); cam.lookAt(tgt); }
+    upd();
+    var drag=false,lx=0,ly=0;
+    function pd(e){ drag=true; lx=e.clientX; ly=e.clientY; }
+    function pu(){ drag=false; }
+    function pm(e){ if(!drag)return; yaw-=(e.clientX-lx)*0.008; pit=Math.max(0.2,Math.min(1.45,pit-(e.clientY-ly)*0.006)); lx=e.clientX; ly=e.clientY; upd(); }
+    function wh(e){ e.preventDefault(); R=Math.max(38,Math.min(140,R+e.deltaY*0.06)); upd(); }
+    mount.addEventListener('pointerdown',pd); window.addEventListener('pointerup',pu); window.addEventListener('pointermove',pm); mount.addEventListener('wheel',wh,{passive:false});
+    var raf;
+    function tick(){
+      raf = requestAnimationFrame(tick);
+      var d = dataRef.current, drp = d.rp || {}, dbp = d.bp;
+      Object.keys(tokens).forEach(function(k){ var p = drp[k]; if(p) tokens[k].position.set((p.x-0.5)*FW, 0, p.y*FD); });
+      if (dbp){ ball.visible=true; ball.position.set((dbp.x-0.5)*FW, 0.55, dbp.y*FD); } else ball.visible=false;
+      renderer.render(scene, cam);
+    }
+    tick();
+    function onResize(){ var w=mount.clientWidth, h=mount.clientHeight; if(w&&h){ renderer.setSize(w,h); cam.aspect=w/h; cam.updateProjectionMatrix(); } }
+    window.addEventListener('resize', onResize);
+    return function(){
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize',onResize); window.removeEventListener('pointerup',pu); window.removeEventListener('pointermove',pm);
+      mount.removeEventListener('pointerdown',pd); mount.removeEventListener('wheel',wh);
+      try { renderer.dispose(); } catch(e){}
+      if (renderer.domElement && renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
+    };
+  }, [play.id]);
+  if (typeof THREE === 'undefined') {
+    return React.createElement('div', { style:{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'#6a7390', fontSize:13, background:'#0a0e12', zIndex:5 } }, 'Cargando 3D…');
+  }
+  return React.createElement('div', { ref: mountRef, style:{ position:'absolute', inset:0, background:'#0a0e12', touchAction:'none', cursor:'grab', zIndex:5 } });
+}
+
 function InteractiveCanvas(_ref8) {
   var play = _ref8.play,
     ownAsgn = _ref8.ownAsgn,
@@ -8646,6 +8733,7 @@ function MatchDayScreen(_ref28) {
     rivalSubs = _useStateRivalSubs[0],
     setRivalSubs = _useStateRivalSubs[1];
   var _useNowTick = useState(0), nowTick = _useNowTick[0], setNowTick = _useNowTick[1];
+  var _useV3d = useState(false), view3d = _useV3d[0], setView3d = _useV3d[1];
   var UNDO_WINDOW_MS = 120000;
   var subActive = function(s) { var t = s && s.applied_at ? new Date(s.applied_at).getTime() : 0; return (Date.now() - t) < UNDO_WINDOW_MS; };
   var visSubs = subs.filter(subActive);
@@ -11332,6 +11420,21 @@ active && /*#__PURE__*/React.createElement("button", {
       whiteSpace: 'nowrap'
     }
   }, (curPlay && curPlay.canvas_data.field_full) ? 'CAMPO ●' : 'CAMPO ½'), /*#__PURE__*/React.createElement("button", {
+    onClick: function() { setView3d(function(v){ return !v; }); },
+    title: "Ver la jugada en 3D / 2D",
+    style: {
+      background: view3d ? '#39FF1422' : '#1a1a2e',
+      border: "1px solid " + (view3d ? '#39FF14' : '#2a2a3a'),
+      color: view3d ? '#39FF14' : '#9ba3b8',
+      borderRadius: 3,
+      padding: '3px 9px',
+      fontSize: 10,
+      fontWeight: 800,
+      cursor: 'pointer',
+      whiteSpace: 'nowrap',
+      letterSpacing: 0.5
+    }
+  }, view3d ? '2D' : '3D'), /*#__PURE__*/React.createElement("button", {
     onClick: () => setRecMode(r => !r),
     title: "Grabaci\xF3n libre: cada movimiento crea un frame nuevo",
     style: {
@@ -11521,6 +11624,12 @@ active && /*#__PURE__*/React.createElement("button", {
     onRoleClick: role => setRoleEditMod(role),
     onRoleLongPress: role => setRoleEditMod(role),
     onTokenDrop: handleTokenDrop
+  }), view3d && curPlay && /*#__PURE__*/React.createElement(Pizarra3D, {
+    play: curPlay,
+    ownAsgn: ownAsgn,
+    rivAsgn: rivAsgn,
+    activePhaseId: activePhaseId,
+    interpData: interpData
   }), !curPlay && /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'absolute',
