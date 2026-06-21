@@ -481,29 +481,16 @@ try {
       var img = new Image();
       img.onload = function () {
         try {
-          var CW = 1360, scale = CW / vw;
-          var bh = Math.round(vh * scale), FOOT = 92;
+          var CW = 1600, scale = CW / vw;
+          var bh = Math.round(vh * scale);
           var c = document.createElement('canvas');
-          c.width = CW; c.height = bh + FOOT;
+          c.width = CW; c.height = bh;
           var ctx = c.getContext('2d');
-          ctx.fillStyle = '#07070e';
+          ctx.fillStyle = '#0b1410';
           ctx.fillRect(0, 0, c.width, c.height);
           ctx.drawImage(img, 0, 0, CW, bh);
-          /* pie con marca */
-          ctx.fillStyle = '#0a0a16';
-          ctx.fillRect(0, bh, CW, FOOT);
-          ctx.fillStyle = 'rgba(57,255,20,0.5)';
-          ctx.fillRect(0, bh, CW, 2);
-          ctx.fillStyle = '#39FF14';
-          ctx.font = '700 34px "Arial Narrow",Arial,sans-serif';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('\u2B21 DEADBALL MANAGER PRO', 28, bh + FOOT / 2);
-          ctx.fillStyle = '#8a8eae';
-          ctx.font = '400 26px "Arial Narrow",Arial,sans-serif';
-          var dateTxt = new Date().toLocaleDateString('es-ES');
-          ctx.textAlign = 'right';
-          ctx.fillText(dateTxt, CW - 28, bh + FOOT / 2);
-          ctx.textAlign = 'left';
+          /* marca peque\u00F1a: logo + nombre */
+          if (typeof window.dbmWatermark === 'function') { try { window.dbmWatermark(ctx, CW, bh); } catch (e) {} }
           URL.revokeObjectURL(url);
           c.toBlob(function (png) {
             busy = false;
@@ -10239,7 +10226,7 @@ function MatchDayScreen(_ref28) {
     };
     animRafRef.current = requestAnimationFrame(tick);
   }
-  // ── Export de VÍDEO: graba el canvas 3D durante la animación + pie con marca ──
+  // ── Export de VÍDEO: graba la pizarra TAL CUAL está (2D o 3D) durante la animación ──
   function videoAnimMs(play) {
     var phases = (play.canvas_data.phases) || [];
     var roles = (play.canvas_data.roles) || [];
@@ -10263,6 +10250,60 @@ function MatchDayScreen(_ref28) {
     for (var i = 0; i < c.length; i++) { try { if (MediaRecorder.isTypeSupported(c[i])) return c[i]; } catch (e) {} }
     return '';
   }
+  // Marca de agua pequeña: hexágono + nombre, abajo-derecha
+  function videoWatermark(ctx, w, h) {
+    var fs = Math.max(13, Math.round(w * 0.018));
+    var pad = Math.round(fs * 0.55);
+    var txt = 'DeadBall Manager PRO';
+    ctx.font = '600 ' + fs + 'px "Barlow Condensed","Arial Narrow",Arial,sans-serif';
+    var tw = ctx.measureText(txt).width;
+    var hexR = fs * 0.62;
+    var gap = fs * 0.42;
+    var bw = hexR * 2 + gap + tw + pad * 2.2;
+    var bh = Math.max(hexR * 2, fs) + pad * 1.1;
+    var margin = Math.round(w * 0.015);
+    var bx = w - bw - margin, by = h - bh - margin;
+    var r = bh / 2;
+    ctx.fillStyle = 'rgba(7,10,16,0.5)';
+    ctx.beginPath();
+    ctx.moveTo(bx + r, by); ctx.arcTo(bx + bw, by, bx + bw, by + bh, r);
+    ctx.arcTo(bx + bw, by + bh, bx, by + bh, r); ctx.arcTo(bx, by + bh, bx, by, r);
+    ctx.arcTo(bx, by, bx + bw, by, r); ctx.closePath(); ctx.fill();
+    var hx = bx + pad + hexR, hy = by + bh / 2;
+    ctx.beginPath();
+    for (var i = 0; i < 6; i++) { var a = Math.PI / 6 + i * Math.PI / 3; var px = hx + hexR * Math.cos(a), py = hy + hexR * Math.sin(a); if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+    ctx.closePath(); ctx.fillStyle = '#39FF14'; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.94)'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillText(txt, hx + hexR + gap, hy + 1);
+  }
+  function finishVideo(chunks, mr, mime, opts) {
+    var type = (mr.mimeType || mime || 'video/webm').split(';')[0];
+    var blob = new Blob(chunks, { type: type });
+    var ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+    var fname = 'jugada_dbm_' + new Date().toISOString().slice(0, 10) + '.' + ext;
+    try { window.dbmTrack && window.dbmTrack('export_video'); } catch (e) {}
+    var file = null; try { file = new File([blob], fname, { type: type }); } catch (e) {}
+    if (opts.share && file && navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+      navigator.share({ files: [file], title: 'DeadBall Manager PRO' }).catch(function () {});
+    } else {
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname;
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+    }
+    toast('Vídeo listo');
+  }
+  function startRecorder(rc, opts) {
+    var mime = pickVideoMime();
+    var stream, mr;
+    try {
+      stream = rc.captureStream(60);
+      mr = mime ? new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 14000000 }) : new MediaRecorder(stream, { videoBitsPerSecond: 14000000 });
+    } catch (e) { toast('No se pudo grabar: ' + e.message); return null; }
+    var chunks = [];
+    mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+    mr.onstop = function () { finishVideo(chunks, mr, mime, opts); };
+    return mr;
+  }
   function exportVideoNow(opts) {
     opts = opts || {};
     var play = plays.find(function (p) { return p.id === pid; });
@@ -10270,69 +10311,80 @@ function MatchDayScreen(_ref28) {
     var phases = (play.canvas_data.phases) || [];
     if (phases.length < 2) { toast('Crea al menos 2 fases para grabar vídeo'); return; }
     if (typeof MediaRecorder === 'undefined') { toast('Tu navegador no permite grabar vídeo'); return; }
-    var was3d = view3d;
-    if (!view3d) setView3d(true);
     setActivePhaseId(phases[0].id);
     toast('Preparando vídeo…');
-    setTimeout(function () { recordCanvas(opts, play, was3d); }, was3d ? 260 : 850);
+    setTimeout(function () { if (view3d) record3D(opts, play); else record2D(opts, play); }, 240);
   }
-  function recordCanvas(opts, play, was3d) {
+  function record3D(opts, play) {
     var gl = document.querySelector('canvas[data-dbm-3d]');
-    if (!gl) { toast('No se pudo iniciar la vista 3D'); return; }
+    if (!gl) { toast('No se pudo leer la vista 3D'); return; }
     var gw = gl.width, gh = gl.height;
-    var scale = gw > 1080 ? 1080 / gw : 1;
+    var TARGET = 1440, scale = gw > TARGET ? TARGET / gw : 1;
     var vw = Math.round(gw * scale), vh = Math.round(gh * scale);
-    var FOOT = Math.max(54, Math.round(vh * 0.085));
-    var rc = document.createElement('canvas'); rc.width = vw; rc.height = vh + FOOT;
+    var rc = document.createElement('canvas'); rc.width = vw; rc.height = vh;
     var ctx = rc.getContext('2d');
-    var dateTxt = new Date().toLocaleDateString('es-ES');
     var drawing = true;
     function loop() {
       if (!drawing) return;
       requestAnimationFrame(loop);
-      ctx.fillStyle = '#07070e'; ctx.fillRect(0, 0, rc.width, rc.height);
+      ctx.fillStyle = '#07070e'; ctx.fillRect(0, 0, vw, vh);
       try { ctx.drawImage(gl, 0, 0, vw, vh); } catch (e) {}
-      ctx.fillStyle = '#0a0a16'; ctx.fillRect(0, vh, rc.width, FOOT);
-      ctx.fillStyle = 'rgba(57,255,20,0.5)'; ctx.fillRect(0, vh, rc.width, 2);
-      ctx.fillStyle = '#39FF14'; ctx.textBaseline = 'middle';
-      ctx.font = '700 ' + Math.round(FOOT * 0.4) + 'px "Arial Narrow",Arial,sans-serif';
-      ctx.textAlign = 'left'; ctx.fillText('⬡ DEADBALL MANAGER PRO', 20, vh + FOOT / 2);
-      ctx.fillStyle = '#8a8eae'; ctx.font = '400 ' + Math.round(FOOT * 0.32) + 'px "Arial Narrow",Arial,sans-serif';
-      ctx.textAlign = 'right'; ctx.fillText(dateTxt, rc.width - 20, vh + FOOT / 2); ctx.textAlign = 'left';
+      videoWatermark(ctx, vw, vh);
     }
-    var mime = pickVideoMime();
-    var stream, mr;
-    try {
-      stream = rc.captureStream(30);
-      mr = mime ? new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6000000 }) : new MediaRecorder(stream);
-    } catch (e) { toast('No se pudo grabar: ' + e.message); return; }
-    var chunks = [];
-    mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
-    mr.onstop = function () {
-      drawing = false;
-      if (!was3d) setView3d(false);
-      var type = (mr.mimeType || mime || 'video/webm').split(';')[0];
-      var blob = new Blob(chunks, { type: type });
-      var ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
-      var fname = 'jugada_dbm_' + new Date().toISOString().slice(0, 10) + '.' + ext;
-      try { window.dbmTrack && window.dbmTrack('export_video'); } catch (e) {}
-      var file = null; try { file = new File([blob], fname, { type: type }); } catch (e) {}
-      if (opts.share && file && navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
-        navigator.share({ files: [file], title: 'DeadBall Manager PRO' }).catch(function () {});
-      } else {
-        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname;
-        document.body.appendChild(a); a.click();
-        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
-      }
-      toast('Vídeo listo');
-    };
+    var mr = startRecorder(rc, opts); if (!mr) return;
     requestAnimationFrame(loop);
     try { mr.start(); } catch (e) { drawing = false; toast('No se pudo grabar: ' + e.message); return; }
     playAnimation(true);
     var dur = videoAnimMs(play);
-    setTimeout(function () { try { if (mr.state !== 'inactive') mr.stop(); } catch (e) {} }, dur + 700);
+    setTimeout(function () { drawing = false; try { if (mr.state !== 'inactive') mr.stop(); } catch (e) {} }, dur + 700);
+  }
+  function record2D(opts, play) {
+    var svg = document.querySelector('svg[viewBox="0 0 680 1050"],svg[viewBox="0 0 680 500"]');
+    if (!svg) { toast('No se encontró la pizarra'); return; }
+    var vb = (svg.getAttribute('viewBox') || '0 0 680 500').split(/\s+/);
+    var sw = parseFloat(vb[2]) || 680, sh = parseFloat(vb[3]) || 500;
+    var TARGET = 1440, k = TARGET / sw;
+    var vw = Math.round(sw * k), vh = Math.round(sh * k);
+    var rc = document.createElement('canvas'); rc.width = vw; rc.height = vh;
+    var ctx = rc.getContext('2d');
+    var cur = null, ready = true, drawing = true, tainted = false, checked = false;
+    function snap() {
+      var clone = svg.cloneNode(true);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('width', sw); clone.setAttribute('height', sh);
+      var styl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      styl.textContent = 'text{font-family:Arial,sans-serif}';
+      clone.insertBefore(styl, clone.firstChild);
+      var xml = new XMLSerializer().serializeToString(clone);
+      var url = URL.createObjectURL(new Blob([xml], { type: 'image/svg+xml;charset=utf-8' }));
+      var im = new Image();
+      im.onload = function () { cur = im; ready = true; URL.revokeObjectURL(url); };
+      im.onerror = function () { ready = true; URL.revokeObjectURL(url); };
+      im.src = url;
+    }
+    function loop() {
+      if (!drawing) return;
+      requestAnimationFrame(loop);
+      if (ready) { ready = false; snap(); }
+      ctx.fillStyle = '#0b1410'; ctx.fillRect(0, 0, vw, vh);
+      if (cur) { try { ctx.drawImage(cur, 0, 0, vw, vh); } catch (e) {} }
+      if (!checked && cur) {
+        checked = true;
+        try { ctx.getImageData(0, 0, 1, 1); } catch (e) { tainted = true; }
+        if (tainted) { drawing = false; toast('Las fotos por URL impiden grabar en 2D. Cambia a 3D o usa fotos subidas.'); try { if (mr) { mr.onstop = null; if (mr.state !== 'inactive') mr.stop(); } } catch (e2) {} return; }
+      }
+      videoWatermark(ctx, vw, vh);
+    }
+    var mr = startRecorder(rc, opts); if (!mr) return;
+    snap();
+    requestAnimationFrame(loop);
+    try { mr.start(); } catch (e) { drawing = false; toast('No se pudo grabar: ' + e.message); return; }
+    playAnimation(true);
+    var dur = videoAnimMs(play);
+    setTimeout(function () { drawing = false; try { if (mr.state !== 'inactive') mr.stop(); } catch (e) {} }, dur + 800);
   }
   window.dbmExportVideo = exportVideoNow;
+  window.dbmWatermark = videoWatermark;
   function stepPhase(dir) {
     var play = plays.find(p => p.id === pid);
     if (!play) return;
