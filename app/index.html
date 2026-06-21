@@ -3956,14 +3956,17 @@ var PitchDefs = () => /*#__PURE__*/React.createElement("defs", null, /*#__PURE__
   in: "SourceGraphic"
 }))));
 function PitchBg(_ref5) {
-  var zone = _ref5.zone, full = _ref5.full;
-  var ln = 'rgba(255,255,255,0.62)',
-    th = 'rgba(255,255,255,0.42)';
+  var zone = _ref5.zone, full = _ref5.full, light = _ref5.light;
+  var ln = light ? 'rgba(18,26,20,0.82)' : 'rgba(255,255,255,0.62)',
+    th = light ? 'rgba(18,26,20,0.55)' : 'rgba(255,255,255,0.42)';
   if (full) {
     var E = React.createElement;
     // Fondo común (césped + franjas + degradados)
     var FULLH = 1050;
-    var bg = [
+    var bg = light ? [
+      E("rect", { key: 'fl0', width: W, height: FULLH, fill: "#eef3ee" }),
+      [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(function(i){ return E("rect", { key: 'fls'+i, x: 0, y: i*65.6, width: W, height: 32.8, fill: i%2===0 ? "rgba(0,0,0,0.015)" : "rgba(0,0,0,0.04)" }); })
+    ] : [
       E("rect", { key: 'fg0', width: W, height: FULLH, fill: "url(#gp2)" }),
       [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(function(i){ return E("rect", { key: 'fs'+i, x: 0, y: i*65.6, width: W, height: 32.8, fill: i%2===0 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)" }); }),
       E("rect", { key: 'fg1', width: W, height: FULLH, fill: "url(#grass)" }),
@@ -4053,12 +4056,14 @@ function PitchBg(_ref5) {
     height: H,
     fill: "url(#vignette)",
     pointerEvents: "none"
-  }), /*#__PURE__*/React.createElement("rect", {
+  }), light && /*#__PURE__*/React.createElement("rect", {
+    width: W, height: H, fill: "#eef3ee"
+  }), light && [0,1,2,3,4,5,6,7].map(function(i){ return /*#__PURE__*/React.createElement("rect", { key: 'hls'+i, x: 0, y: i*64, width: W, height: 32, fill: i%2===0 ? "rgba(0,0,0,0.015)" : "rgba(0,0,0,0.04)" }); }), /*#__PURE__*/React.createElement("rect", {
     x: gL,
     y: gT,
     width: gR - gL,
     height: gY - gT,
-    fill: "rgba(255,255,255,0.07)",
+    fill: light ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.07)",
     stroke: ln,
     strokeWidth: 1.5
   }), [1, 2, 3, 4].map(i => /*#__PURE__*/React.createElement("line", {
@@ -4337,7 +4342,7 @@ function Ball(_ref7) {
 // INTERACTIVE CANVAS — drag tokens, animar fases, cambiar posiciones
 // ══════════════════════════════════════════════════════════════════════════════
 function Pizarra3D(_p) {
-  var play = _p.play, ownAsgn = _p.ownAsgn || {}, rivAsgn = _p.rivAsgn || {}, activePhaseId = _p.activePhaseId, interpData = _p.interpData;
+  var play = _p.play, ownAsgn = _p.ownAsgn || {}, rivAsgn = _p.rivAsgn || {}, activePhaseId = _p.activePhaseId, interpData = _p.interpData, light = _p.light;
   var mountRef = useRef(null);
   var dataRef = useRef({});
   var phases = (play.canvas_data.phases) || [];
@@ -4359,16 +4364,17 @@ function Pizarra3D(_p) {
     var mount = mountRef.current; if (!mount) return;
     var W = mount.clientWidth || 600, Hh = mount.clientHeight || 400;
     var FW = 68, FD = full ? 105 : 50;
-    var scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0e12); scene.fog = new THREE.Fog(0x0a0e12, 110, 240);
+    var bgC = light?0xeef3ee:0x0a0e12, grassC = light?0xdfe7df:0x1f7a3a, st1C = light?0xe8eee8:0x23843f, st2C = light?0xdde6dd:0x1c7037, lineC = light?0x141a14:0xffffff, postC = light?0x33402f:0xffffff;
+    var scene = new THREE.Scene(); scene.background = new THREE.Color(bgC); scene.fog = new THREE.Fog(bgC, 130, 280);
     var cam = new THREE.PerspectiveCamera(45, W/Hh, 0.1, 600);
     var renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(W, Hh); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     mount.appendChild(renderer.domElement);
     scene.add(new THREE.HemisphereLight(0x9ec4ff, 0x2a3b22, 0.9));
     var dir = new THREE.DirectionalLight(0xffffff, 0.5); dir.position.set(20, 50, 30); scene.add(dir);
-    var pitch = new THREE.Mesh(new THREE.PlaneGeometry(FW+10, FD+10), new THREE.MeshLambertMaterial({ color: 0x1f7a3a }));
+    var pitch = new THREE.Mesh(new THREE.PlaneGeometry(FW+10, FD+10), new THREE.MeshLambertMaterial({ color: grassC }));
     pitch.rotation.x = -Math.PI/2; pitch.position.set(0, 0, FD/2); scene.add(pitch);
-    for (var s=0; s*8 < FD+8; s++){ var stp = new THREE.Mesh(new THREE.PlaneGeometry(FW+10, 8), new THREE.MeshLambertMaterial({ color: s%2?0x23843f:0x1c7037 })); stp.rotation.x=-Math.PI/2; stp.position.set(0,0.01,s*8); scene.add(stp); }
+    for (var s=0; s*8 < FD+8; s++){ var stp = new THREE.Mesh(new THREE.PlaneGeometry(FW+10, 8), new THREE.MeshLambertMaterial({ color: s%2?st1C:st2C })); stp.rotation.x=-Math.PI/2; stp.position.set(0,0.01,s*8); scene.add(stp); }
     var lpos = []; function L(ax,az,bx,bz){ lpos.push(ax,0.06,az,bx,0.06,bz); }
     var hw = FW/2;
     L(-hw,0,hw,0); L(-hw,FD,hw,FD); L(-hw,0,-hw,FD); L(hw,0,hw,FD);
@@ -4383,8 +4389,8 @@ function Pizarra3D(_p) {
       var pb=null; for(var ab=-1.15;ab<=1.15;ab+=0.1){ var pbx=Math.sin(ab)*9.15, pbz=(FD-11)+Math.cos(ab)*9.15; if(pbz<FD-16.5){ if(pb)L(pb[0],pb[1],pbx,pbz); pb=[pbx,pbz]; } else pb=null; }
     }
     var lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lpos,3));
-    scene.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:0.8 })));
-    function goal(z, dirSign){ [[-3.66,z],[3.66,z]].forEach(function(p){ var po=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,3,8), new THREE.MeshLambertMaterial({color:0xffffff})); po.position.set(p[0],1.5,z); scene.add(po); }); var gb=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,7.32,8), new THREE.MeshLambertMaterial({color:0xffffff})); gb.rotation.z=Math.PI/2; gb.position.set(0,3,z); scene.add(gb); }
+    scene.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color:lineC, transparent:true, opacity:light?0.9:0.8 })));
+    function goal(z, dirSign){ [[-3.66,z],[3.66,z]].forEach(function(p){ var po=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,3,8), new THREE.MeshLambertMaterial({color:postC})); po.position.set(p[0],1.5,z); scene.add(po); }); var gb=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,7.32,8), new THREE.MeshLambertMaterial({color:postC})); gb.rotation.z=Math.PI/2; gb.position.set(0,3,z); scene.add(gb); }
     goal(0);
     if (full) goal(FD);
     function numSprite(n,col){ var cv=document.createElement('canvas'); cv.width=cv.height=128; var x=cv.getContext('2d'); x.fillStyle=col; x.beginPath(); x.arc(64,64,58,0,7); x.fill(); x.strokeStyle='#ffffff'; x.lineWidth=7; x.stroke(); x.fillStyle='#ffffff'; x.font='bold 70px Arial'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(String(n),64,70); return new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(cv), depthTest:false })); }
@@ -4450,7 +4456,7 @@ function Pizarra3D(_p) {
       try { renderer.dispose(); } catch(e){}
       if (renderer.domElement && renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
     };
-  }, [play.id, full, annList.length]);
+  }, [play.id, full, annList.length, light]);
   if (typeof THREE === 'undefined') {
     return React.createElement('div', { style:{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'#6a7390', fontSize:13, background:'#0a0e12', zIndex:5 } }, 'Cargando 3D…');
   }
@@ -4805,7 +4811,8 @@ function InteractiveCanvas(_ref8) {
     }
   }, /*#__PURE__*/React.createElement(PitchDefs, null), /*#__PURE__*/React.createElement(PitchBg, {
     zone: play.canvas_data.pitch_zone,
-    full: play.canvas_data.field_full
+    full: play.canvas_data.field_full,
+    light: _ref8.light
   }), shiftHeld && (drag || ballDrag) && /*#__PURE__*/React.createElement("g", {
     opacity: 0.25,
     pointerEvents: "none"
@@ -8769,6 +8776,8 @@ function MatchDayScreen(_ref28) {
     setRivalSubs = _useStateRivalSubs[1];
   var _useNowTick = useState(0), nowTick = _useNowTick[0], setNowTick = _useNowTick[1];
   var _useV3d = useState(false), view3d = _useV3d[0], setView3d = _useV3d[1];
+  var _useLight = useState(function(){ try { return localStorage.getItem('dbm_pitch_light') === '1'; } catch(e){ return false; } }), pitchLight = _useLight[0], setPitchLight = _useLight[1];
+  function togglePitchLight() { setPitchLight(function(v){ var nv = !v; try { localStorage.setItem('dbm_pitch_light', nv ? '1' : '0'); } catch(e){} return nv; }); }
   var UNDO_WINDOW_MS = 120000;
   var subActive = function(s) { var t = s && s.applied_at ? new Date(s.applied_at).getTime() : 0; return (Date.now() - t) < UNDO_WINDOW_MS; };
   var visSubs = subs.filter(subActive);
@@ -11470,6 +11479,20 @@ active && /*#__PURE__*/React.createElement("button", {
       letterSpacing: 0.5
     }
   }, view3d ? '2D' : '3D'), /*#__PURE__*/React.createElement("button", {
+    onClick: togglePitchLight,
+    title: "Color del campo: verde o blanco (l\xEDneas negras)",
+    style: {
+      background: pitchLight ? '#f0f3ef' : '#1a1a2e',
+      border: "1px solid " + (pitchLight ? '#c4ccc2' : '#2a2a3a'),
+      color: pitchLight ? '#1a201a' : '#9ba3b8',
+      borderRadius: 3,
+      padding: '3px 8px',
+      fontSize: 10,
+      fontWeight: 800,
+      cursor: 'pointer',
+      whiteSpace: 'nowrap'
+    }
+  }, pitchLight ? 'VERDE' : 'BLANCO'), /*#__PURE__*/React.createElement("button", {
     onClick: () => setRecMode(r => !r),
     title: "Grabaci\xF3n libre: cada movimiento crea un frame nuevo",
     style: {
@@ -11658,13 +11681,15 @@ active && /*#__PURE__*/React.createElement("button", {
     onMoveBall: handleMoveBall,
     onRoleClick: role => setRoleEditMod(role),
     onRoleLongPress: role => setRoleEditMod(role),
-    onTokenDrop: handleTokenDrop
+    onTokenDrop: handleTokenDrop,
+    light: pitchLight
   }), view3d && curPlay && /*#__PURE__*/React.createElement(Pizarra3D, {
     play: curPlay,
     ownAsgn: ownAsgn,
     rivAsgn: rivAsgn,
     activePhaseId: activePhaseId,
-    interpData: interpData
+    interpData: interpData,
+    light: pitchLight
   }), !curPlay && /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'absolute',
