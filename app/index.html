@@ -8645,6 +8645,16 @@ function MatchDayScreen(_ref28) {
   var _useStateRivalSubs = useState([]),
     rivalSubs = _useStateRivalSubs[0],
     setRivalSubs = _useStateRivalSubs[1];
+  var _useNowTick = useState(0), nowTick = _useNowTick[0], setNowTick = _useNowTick[1];
+  var UNDO_WINDOW_MS = 120000;
+  var subActive = function(s) { var t = s && s.applied_at ? new Date(s.applied_at).getTime() : 0; return (Date.now() - t) < UNDO_WINDOW_MS; };
+  var visSubs = subs.filter(subActive);
+  var visRivalSubs = rivalSubs.filter(subActive);
+  useEffect(function() {
+    if (subs.length === 0 && rivalSubs.length === 0) return;
+    var iv = setInterval(function() { setNowTick(function(t) { return t + 1; }); }, 15000);
+    return function() { clearInterval(iv); };
+  }, [subs.length, rivalSubs.length]);
   var _useState75 = useState([]),
     _useState76 = _slicedToArray(_useState75, 2),
     rivals = _useState76[0],
@@ -10453,7 +10463,7 @@ function MatchDayScreen(_ref28) {
           yield db.rival_players.update(outId, { role: 'subbed_off' });
           yield db.rival_players.update(inId, { role: null });
         }));
-        var _rivSubRec = { id: 'rs_' + uid(), match_id: matchId, player_out_id: outId, player_in_id: inId, minute: (typeof minute !== 'undefined' && minute != null ? minute : 0), is_rival: true, role_before: outPrevRole };
+        var _rivSubRec = { id: 'rs_' + uid(), match_id: matchId, player_out_id: outId, player_in_id: inId, minute: (typeof minute !== 'undefined' && minute != null ? minute : 0), is_rival: true, role_before: outPrevRole, applied_at: new Date().toISOString() };
         try { yield db.substitutions.add(_rivSubRec); } catch (e) {}
         yield load();
         if (pid) {
@@ -11831,7 +11841,7 @@ active && /*#__PURE__*/React.createElement("button", {
       );
     });
   })()
-  ), (subs.length > 0 || rivalSubs.length > 0) && /*#__PURE__*/React.createElement("div", {
+  ), (visSubs.length > 0 || visRivalSubs.length > 0) && /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'absolute',
       bottom: 'calc(8px + env(safe-area-inset-bottom))',
@@ -11851,13 +11861,13 @@ active && /*#__PURE__*/React.createElement("button", {
       letterSpacing: 1.5,
       marginBottom: 4
     }
-  }, "CAMBIOS \xB7 ", subs.length, "/5", rivalSubs.length > 0 ? (" \xB7 RIVAL " + rivalSubs.length) : ""), /*#__PURE__*/React.createElement("div", {
+  }, "DESHACER \xB7 ", subs.length, "/5", visRivalSubs.length > 0 ? (" \xB7 RIVAL " + visRivalSubs.length) : ""), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexWrap: 'wrap',
       gap: 6
     }
-  }, subs.map(s => {
+  }, visSubs.map(s => {
     var _s$player_out$squad_n, _s$player_out, _s$player_in$squad_nu, _s$player_in;
     return /*#__PURE__*/React.createElement("div", {
       key: s.id,
@@ -11901,7 +11911,7 @@ active && /*#__PURE__*/React.createElement("button", {
       title: "Deshacer este cambio",
       style: { background: "transparent", border: "none", color: "#FFD700", cursor: "pointer", fontSize: 11, fontWeight: 900, padding: "0 2px", marginLeft: 2, lineHeight: 1 }
     }, "↶"));
-  }), rivalSubs.map(function(s) {
+  }), visRivalSubs.map(function(s) {
     var ro = s.rivOut || {}, ri = s.rivIn || {};
     return /*#__PURE__*/React.createElement("div", {
       key: s.id,
