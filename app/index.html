@@ -4364,7 +4364,7 @@ function Pizarra3D(_p) {
     var mount = mountRef.current; if (!mount) return;
     var W = mount.clientWidth || 600, Hh = mount.clientHeight || 400;
     var FW = 68, FD = full ? 105 : 50;
-    var bgC = light?0xeef3ee:0x0a0e12, grassC = light?0xdfe7df:0x1f7a3a, st1C = light?0xe8eee8:0x23843f, st2C = light?0xdde6dd:0x1c7037, lineC = light?0x141a14:0xffffff, postC = light?0x33402f:0xffffff;
+    var bgC = light?0xc4ced6:0x0a0e12, grassC = light?0xf5f7f4:0x1f7a3a, st1C = light?0xedf1ec:0x23843f, st2C = light?0xf2f5f1:0x1c7037, lineC = light?0x141a14:0xffffff, postC = light?0x33402f:0xffffff;
     var scene = new THREE.Scene(); scene.background = new THREE.Color(bgC); scene.fog = new THREE.Fog(bgC, 130, 280);
     var cam = new THREE.PerspectiveCamera(45, W/Hh, 0.1, 600);
     var renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -4460,7 +4460,7 @@ function Pizarra3D(_p) {
   if (typeof THREE === 'undefined') {
     return React.createElement('div', { style:{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'#6a7390', fontSize:13, background:'#0a0e12', zIndex:5 } }, 'Cargando 3D…');
   }
-  return React.createElement('div', { ref: mountRef, style:{ position:'absolute', inset:0, background:'#0a0e12', touchAction:'none', cursor:'grab', zIndex:5 } });
+  return React.createElement('div', { ref: mountRef, style:{ position:'absolute', inset:0, background: light?'#c4ced6':'#0a0e12', touchAction:'none', cursor:'grab', zIndex:5 } });
 }
 
 function InteractiveCanvas(_ref8) {
