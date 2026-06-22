@@ -475,6 +475,7 @@ try {
       var styl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
       styl.textContent = 'text{font-family:"Arial Narrow",Arial,sans-serif}';
       clone.insertBefore(styl, clone.firstChild);
+      var finish = function () {
       var xml = new XMLSerializer().serializeToString(clone);
       var blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
       var url = URL.createObjectURL(blob);
@@ -520,6 +521,10 @@ try {
         if (window.dbmAlert) dbmAlert('No se pudo procesar la pizarra.');
       };
       img.src = url;
+      };
+      if (typeof window.dbmInlineImages === 'function') {
+        window.dbmInlineImages(clone).then(finish).catch(finish);
+      } else { finish(); }
     } catch (e) {
       busy = false;
       if (window.dbmAlert) dbmAlert('Error al exportar: ' + e.message);
@@ -10341,15 +10346,25 @@ function MatchDayScreen(_ref28) {
   function record2D(opts, play) {
     var svg = document.querySelector('svg[viewBox="0 0 680 1050"],svg[viewBox="0 0 680 500"]');
     if (!svg) { toast('No se encontró la pizarra'); return; }
+    // Precalentar: convertir fotos por URL a base64 (para que se vean y no contaminen).
+    var warm = svg.cloneNode(true);
+    var hasRemote = Array.prototype.some.call(warm.querySelectorAll('image'), function (el) {
+      var h = el.getAttribute('href') || el.getAttributeNS(DBM_XLINK, 'href') || ''; return h && h.indexOf('data:') !== 0;
+    });
+    if (hasRemote) toast('Preparando fotos…');
+    window.dbmInlineImages(warm).then(function () { startRec2D(opts, play, svg); });
+  }
+  function startRec2D(opts, play, svg) {
     var vb = (svg.getAttribute('viewBox') || '0 0 680 500').split(/\s+/);
     var sw = parseFloat(vb[2]) || 680, sh = parseFloat(vb[3]) || 500;
     var TARGET = 1440, k = TARGET / sw;
     var vw = Math.round(sw * k), vh = Math.round(sh * k);
     var rc = document.createElement('canvas'); rc.width = vw; rc.height = vh;
     var ctx = rc.getContext('2d');
-    var cur = null, ready = true, drawing = true, tainted = false, checked = false;
+    var cur = null, ready = true, drawing = true;
     function snap() {
       var clone = svg.cloneNode(true);
+      window.dbmApplyImgCache(clone);
       clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
       clone.setAttribute('width', sw); clone.setAttribute('height', sh);
       var styl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
@@ -10368,11 +10383,6 @@ function MatchDayScreen(_ref28) {
       if (ready) { ready = false; snap(); }
       ctx.fillStyle = '#0b1410'; ctx.fillRect(0, 0, vw, vh);
       if (cur) { try { ctx.drawImage(cur, 0, 0, vw, vh); } catch (e) {} }
-      if (!checked && cur) {
-        checked = true;
-        try { ctx.getImageData(0, 0, 1, 1); } catch (e) { tainted = true; }
-        if (tainted) { drawing = false; toast('Las fotos por URL impiden grabar en 2D. Cambia a 3D o usa fotos subidas.'); try { if (mr) { mr.onstop = null; if (mr.state !== 'inactive') mr.stop(); } } catch (e2) {} return; }
-      }
       videoWatermark(ctx, vw, vh);
     }
     var mr = startRecorder(rc, opts); if (!mr) return;
@@ -10385,6 +10395,32 @@ function MatchDayScreen(_ref28) {
   }
   window.dbmExportVideo = exportVideoNow;
   window.dbmWatermark = videoWatermark;
+  // Inlina fotos remotas (por URL) como base64 para que se vean al rasterizar el SVG
+  // y no contaminen el canvas. Usa un proxy gratuito con CORS (images.weserv.nl).
+  window.dbmImgCache = window.dbmImgCache || {};
+  var DBM_XLINK = 'http://www.w3.org/1999/xlink';
+  window.dbmApplyImgCache = function (svgEl) {
+    Array.prototype.forEach.call(svgEl.querySelectorAll('image'), function (el) {
+      var href = el.getAttribute('href') || el.getAttributeNS(DBM_XLINK, 'href') || '';
+      if (href && href.indexOf('data:') !== 0 && window.dbmImgCache[href]) {
+        el.setAttribute('href', window.dbmImgCache[href]);
+        el.setAttributeNS(DBM_XLINK, 'href', window.dbmImgCache[href]);
+      }
+    });
+  };
+  window.dbmInlineImages = function (svgEl) {
+    var imgs = Array.prototype.slice.call(svgEl.querySelectorAll('image'));
+    return Promise.all(imgs.map(function (el) {
+      var href = el.getAttribute('href') || el.getAttributeNS(DBM_XLINK, 'href') || '';
+      if (!href || href.indexOf('data:') === 0) return Promise.resolve();
+      if (window.dbmImgCache[href]) { el.setAttribute('href', window.dbmImgCache[href]); el.setAttributeNS(DBM_XLINK, 'href', window.dbmImgCache[href]); return Promise.resolve(); }
+      var prox = 'https://images.weserv.nl/?url=' + encodeURIComponent(href.replace(/^https?:\/\//, '')) + '&output=png';
+      return fetch(prox, { mode: 'cors' }).then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+        .then(function (b) { return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.onerror = rej; fr.readAsDataURL(b); }); })
+        .then(function (durl) { window.dbmImgCache[href] = durl; el.setAttribute('href', durl); el.setAttributeNS(DBM_XLINK, 'href', durl); })
+        .catch(function () {});
+    }));
+  };
   function stepPhase(dir) {
     var play = plays.find(p => p.id === pid);
     if (!play) return;
@@ -14573,9 +14609,11 @@ if('serviceWorker' in navigator){
         '<input id="dbmPass" type="password" placeholder="contraseña" autocomplete="current-password"/>'+
         '<button class="act" id="dbmLogin">Entrar</button>'+
         '<button class="act sec" id="dbmSignup">Crear cuenta nueva</button>'+
+        '<button id="dbmForgot" style="width:100%;margin-top:6px;background:none;border:0;color:#7fb2ff;font-size:12px;text-decoration:underline;cursor:pointer">¿Has olvidado la contraseña?</button>'+
         '<div id="dbmSyncStatus"></div>';
       document.getElementById('dbmLogin').onclick=function(){ doAuth(false); };
       document.getElementById('dbmSignup').onclick=function(){ doAuth(true); };
+      document.getElementById('dbmForgot').onclick=function(){ resetPassword((document.getElementById('dbmEmail')||{}).value, setStatus); };
     } else {
       p.innerHTML='<h4>☁ Sincronizado</h4>'+
         '<div style="color:#cfe;word-break:break-all">'+currentUser.email+'</div>'+
@@ -14623,7 +14661,28 @@ if('serviceWorker' in navigator){
     if(m.indexOf('weak-password')>=0) return 'Contraseña: mín. 6 caracteres';
     if(m.indexOf('invalid-email')>=0) return 'Email no válido';
     if(m.indexOf('network')>=0) return 'Sin conexión';
+    if(m.indexOf('too-many-requests')>=0) return 'Demasiados intentos, espera un momento';
     return 'Error: '+m;
+  }
+
+  // ───────────────── RECUPERAR CONTRASEÑA (email seguro de Firebase) ─────────────────
+  // Usa el sistema oficial de Firebase: envía un email con un enlace de un solo uso
+  // y caducidad; la contraseña se cambia en la página segura de Firebase, no en la app.
+  function resetPassword(emailRaw, statusFn){
+    var email=(emailRaw||'').trim();
+    if(!email || email.indexOf('@')<0){ statusFn('Escribe tu email arriba y vuelve a pulsar','#f88'); return; }
+    if(!auth){ statusFn('Sin conexión','#f88'); return; }
+    statusFn('Enviando email de recuperación…','#9aa');
+    try{ window.dbmTrack && window.dbmTrack('password_reset'); }catch(e){}
+    auth.sendPasswordResetEmail(email).then(function(){
+      statusFn('✓ Te enviamos un email para restablecer la contraseña. Revisa tu bandeja (y spam).','#39FF14');
+    }).catch(function(e){
+      var m=e.code||e.message||'';
+      // Por privacidad, Firebase puede no revelar si el email existe; mostramos mensaje neutro.
+      if(m.indexOf('invalid-email')>=0) statusFn('Email no válido','#f88');
+      else if(m.indexOf('too-many-requests')>=0) statusFn('Demasiados intentos, espera un momento','#f88');
+      else statusFn('Si ese email tiene cuenta, recibirás el enlace en breve.','#9aa');
+    });
   }
 
   // ───────────────── BORRADO DE CUENTA (obligatorio en Google Play) ─────────────────
@@ -14666,9 +14725,10 @@ if('serviceWorker' in navigator){
       '<input id="dbmWPass" type="password" placeholder="contraseña (mín. 6)" autocomplete="current-password" style="'+inp+'"/>'+
       '<button id="dbmWLogin" style="'+bp+';background:#39FF14;color:#04210a">Entrar</button>'+
       '<button id="dbmWSignup" style="'+bp+';background:transparent;color:#9aa;border:1px solid #2a2a3a">Crear cuenta nueva</button>'+
+      '<button id="dbmWForgot" style="background:none;border:0;color:#7fb2ff;font-size:12px;text-decoration:underline;cursor:pointer;margin-top:10px">¿Has olvidado la contraseña?</button>'+
       '<div id="dbmWStatus" style="font-size:12px;color:#f88;margin-top:10px;min-height:16px"></div></div>';
     document.body.appendChild(wall);
-    function wErr(msg){ var s=document.getElementById('dbmWStatus'); if(s) s.textContent=msg; }
+    function wErr(msg,col){ var s=document.getElementById('dbmWStatus'); if(s){ s.textContent=msg; s.style.color=col||'#f88'; } }
     function wAuth(isSignup){
       var em=(document.getElementById('dbmWEmail')||{}).value||'';
       var pw=(document.getElementById('dbmWPass')||{}).value||'';
@@ -14680,6 +14740,7 @@ if('serviceWorker' in navigator){
     }
     document.getElementById('dbmWLogin').onclick=function(){ wAuth(false); };
     document.getElementById('dbmWSignup').onclick=function(){ wAuth(true); };
+    document.getElementById('dbmWForgot').onclick=function(){ resetPassword((document.getElementById('dbmWEmail')||{}).value, wErr); };
   }
 
   // ───────────────── SYNC CORE ─────────────────
