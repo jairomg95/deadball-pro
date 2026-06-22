@@ -10414,7 +10414,7 @@ function MatchDayScreen(_ref28) {
       var href = el.getAttribute('href') || el.getAttributeNS(DBM_XLINK, 'href') || '';
       if (!href || href.indexOf('data:') === 0) return Promise.resolve();
       if (window.dbmImgCache[href]) { el.setAttribute('href', window.dbmImgCache[href]); el.setAttributeNS(DBM_XLINK, 'href', window.dbmImgCache[href]); return Promise.resolve(); }
-      var prox = 'https://images.weserv.nl/?url=' + encodeURIComponent(href.replace(/^https?:\/\//, '')) + '&output=png';
+      var prox = 'https://images.weserv.nl/?url=' + encodeURIComponent(href.replace(/^https?:\/\//, '')) + '&w=256&output=png';
       return fetch(prox, { mode: 'cors' }).then(function (r) { if (!r.ok) throw 0; return r.blob(); })
         .then(function (b) { return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.onerror = rej; fr.readAsDataURL(b); }); })
         .then(function (durl) { window.dbmImgCache[href] = durl; el.setAttribute('href', durl); el.setAttributeNS(DBM_XLINK, 'href', durl); })
