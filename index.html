@@ -144,6 +144,35 @@ footer{border-top:1px solid var(--line);padding:40px 0;margin-top:90px;color:var
 .foot a{color:var(--muted);font-weight:600;font-size:14px}
 .foot a:hover{color:var(--ink)}
 
+/* ---- sustitución sincronizada ---- */
+.swap-bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:28px}
+.pchip{display:inline-flex;align-items:center;gap:13px;background:var(--card);border:1px solid var(--line);border-radius:15px;padding:11px 17px 11px 12px;transition:.3s}
+.pchip .circ{width:46px;height:46px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;font-weight:800;font-size:19px;color:#fff;
+  background:radial-gradient(circle at 50% 30%,#3f80e6,#1b3d77);box-shadow:inset 0 -6px 10px rgba(0,0,0,.35)}
+.pchip .meta b{font-weight:800;font-size:17px;white-space:nowrap}
+.pchip .meta small{display:block;color:var(--muted);font-size:13px}
+.swap-btn{display:inline-flex;align-items:center;gap:9px;cursor:pointer;border:none;font-family:inherit;font-weight:800;
+  letter-spacing:.4px;border-radius:12px;padding:14px 22px;font-size:16px;
+  background:linear-gradient(180deg,#46ff22,#23c406);color:#04210a;box-shadow:0 6px 22px rgba(57,255,20,.32);transition:transform .15s,box-shadow .2s}
+.swap-btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(57,255,20,.45)}
+.swap-btn .rot{display:inline-block;transition:transform .5s}
+.swap-btn:active .rot{transform:rotate(180deg)}
+.sync-badge{display:inline-flex;align-items:center;gap:8px;color:var(--green);font-weight:800;font-size:15px;opacity:0;transform:translateY(5px);transition:opacity .3s,transform .3s}
+.sync-badge.on{opacity:1;transform:none}
+.sync-badge .tk{width:20px;height:20px;border-radius:50%;background:var(--green);color:#04210a;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px}
+.mp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:34px}
+@media(max-width:820px){.mp-grid{grid-template-columns:1fr;max-width:420px}}
+.mp{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:13px;transition:border-color .3s}
+.mp.lit{border-color:rgba(57,255,20,.45)}
+.mp-label{font-weight:800;letter-spacing:1.5px;font-size:11.5px;color:var(--green);margin-bottom:9px;text-transform:uppercase}
+.mp svg{width:100%;height:auto;display:block;border-radius:10px}
+.starTok{transform-box:fill-box;transform-origin:center}
+.starTok.flash{animation:starpulse .7s ease}
+@keyframes starpulse{0%,100%{transform:scale(1)}38%{transform:scale(1.32)}}
+.starTok.flash .halo{animation:halopulse .7s ease}
+@keyframes halopulse{0%{opacity:.95}100%{opacity:0}}
+
 /* reveal animation */
 .reveal{opacity:0;transform:translateY(34px);transition:opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1)}
 .reveal.in{opacity:1;transform:none}
@@ -236,6 +265,25 @@ footer{border-top:1px solid var(--line);padding:40px 0;margin-top:90px;color:var
         <span class="hint">Arrastra para girar ↻</span>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="band" id="sync">
+  <div class="wrap">
+    <div class="kicker reveal">Sincronización inteligente</div>
+    <h2 class="reveal d1">Cambia un jugador.<br>Se actualiza en <span class="gr">todas</span> tus jugadas.</h2>
+    <p class="lead reveal d2">Lesión, sanción o rotación de última hora. Sustituyes al jugador <b>una sola vez</b> y cada córner, falta y estrategia queda al día sola. Sin rehacer nada.</p>
+
+    <div class="swap-bar reveal d2">
+      <div class="pchip" id="pchip">
+        <div class="circ" id="chipCirc">9</div>
+        <div class="meta" id="chipMeta"><b>#9 · Rodri</b><small>tu lanzador</small></div>
+      </div>
+      <button class="swap-btn" id="swapBtn"><span class="rot">⟳</span> Sustituir jugador</button>
+      <span class="sync-badge" id="syncBadge"><span class="tk">✓</span> Sincronizado en 3 jugadas</span>
+    </div>
+
+    <div class="mp-grid reveal d2" id="mpGrid"></div>
   </div>
 </section>
 
@@ -409,6 +457,58 @@ document.querySelectorAll('[data-count]').forEach(function(el){ioc.observe(el)})
     own.concat(riv).forEach(function(g,i){g.children[0].position.y=0.25+Math.sin(t*2+i)*0.05;});
     renderer.render(scene,cam);}
   rs();upd();tick();
+})();
+
+/* ============ SUSTITUCIÓN SINCRONIZADA (2 córners + 1 falta) ============ */
+(function(){
+  var grid=document.getElementById('mpGrid'); if(!grid)return;
+  function tok(cx,cy,team,num,star){
+    var fill=team==='r'?'#b23636':'#2f64b8', stroke=team==='r'?'#ff8a80':'#7fb4ff';
+    if(star){
+      return '<g transform="translate('+cx+','+cy+')"><g class="starTok">'+
+        '<circle class="halo" r="13" fill="none" stroke="#39FF14" stroke-width="3" opacity="0"/>'+
+        '<circle r="11" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1.4"/>'+
+        '<text class="starNum" text-anchor="middle" dy="3.6" font-family="JetBrains Mono,monospace" font-weight="800" font-size="10.5" fill="#fff">9</text>'+
+      '</g></g>';
+    }
+    return '<g transform="translate('+cx+','+cy+')"><circle r="10" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1.2"/>'+
+      '<text text-anchor="middle" dy="3.4" font-family="JetBrains Mono,monospace" font-weight="800" font-size="10" fill="#fff">'+num+'</text></g>';
+  }
+  function pitch(zone,toks){
+    var ln='stroke="rgba(255,255,255,.18)" fill="none"';
+    var stripes=''; for(var i=0;i<6;i++){ stripes+='<rect x="0" y="'+(i*26)+'" width="220" height="13" fill="rgba(255,255,255,.022)"/>'; }
+    var ball = zone==='falta' ? '<circle cx="110" cy="96" r="3.4" fill="#fff"/>'
+             : zone==='cornerR' ? '<circle cx="213" cy="6" r="3.2" fill="#fff"/>'
+             : '<circle cx="7" cy="6" r="3.2" fill="#fff"/>';
+    return '<svg viewBox="0 0 220 150" xmlns="http://www.w3.org/2000/svg">'+
+      '<rect width="220" height="150" rx="9" fill="#0e2a1b"/>'+stripes+
+      '<rect x="2.5" y="2.5" width="215" height="145" rx="6" '+ln+' stroke-width="1.3"/>'+
+      '<rect x="60" y="2.5" width="100" height="46" '+ln+' stroke-width="1.2"/>'+
+      '<rect x="92" y="2.5" width="36" height="19" '+ln+' stroke-width="1"/>'+
+      '<rect x="97" y="0" width="26" height="5" fill="rgba(159,255,206,.22)" stroke="rgba(159,255,206,.5)" stroke-width="1"/>'+
+      ball + toks.map(function(t){return tok(t[0],t[1],t[2],t[3],t[4]);}).join('')+'</svg>';
+  }
+  var cards=[
+    {label:'Córner derecha', svg:pitch('cornerR',[[120,42,'b',9,true],[86,54,'b',11,false],[150,33,'r',4,false],[108,27,'r',5,false]])},
+    {label:'Falta directa',  svg:pitch('falta',[[110,110,'b',9,true],[142,101,'b',10,false],[92,64,'r',4,false],[110,62,'r',5,false],[128,64,'r',6,false]])},
+    {label:'Córner izquierda',svg:pitch('cornerL',[[100,42,'b',9,true],[134,54,'b',7,false],[70,33,'r',4,false],[112,27,'r',6,false]])}
+  ];
+  grid.innerHTML=cards.map(function(c){return '<div class="mp"><div class="mp-label">'+c.label+'</div>'+c.svg+'</div>';}).join('');
+
+  var players=[{num:'9',name:'Rodri'},{num:'17',name:'Marco'}], cur=0, bt;
+  var circ=document.getElementById('chipCirc'), meta=document.getElementById('chipMeta'),
+      badge=document.getElementById('syncBadge'), btn=document.getElementById('swapBtn');
+  function apply(flash){
+    var p=players[cur];
+    grid.querySelectorAll('.starNum').forEach(function(t){t.textContent=p.num;});
+    circ.textContent=p.num; meta.innerHTML='<b>#'+p.num+' · '+p.name+'</b><small>tu lanzador</small>';
+    if(flash){
+      grid.querySelectorAll('.starTok').forEach(function(g){ g.classList.remove('flash'); requestAnimationFrame(function(){ g.classList.add('flash'); }); });
+      grid.querySelectorAll('.mp').forEach(function(m){ m.classList.add('lit'); setTimeout(function(){ m.classList.remove('lit'); },800); });
+      badge.classList.add('on'); clearTimeout(bt); bt=setTimeout(function(){ badge.classList.remove('on'); },1700);
+    }
+  }
+  if(btn) btn.onclick=function(){ cur=1-cur; apply(true); };
 })();
 </script>
 </body>
