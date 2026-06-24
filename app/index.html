@@ -757,7 +757,8 @@ window.dbmStartGhost = function(item, e) {
   var isRival = item.type === 'rival';
   var num = isRival ? item.data.squad_number : (item.data.player ? item.data.player.squad_number : item.data.squad_number);
   var name = isRival ? (item.data.name || '') : (item.data.player ? (item.data.player.name || '') : '');
-  var photo = isRival ? null : (item.data.player ? (item.data.player.photo || null) : null);
+  var _rawPhoto = isRival ? null : (item.data.player ? (item.data.player.photo || null) : null);
+  var photo = (_rawPhoto && String(_rawPhoto).indexOf('data:image/svg') !== 0) ? _rawPhoto : null;
   var color = isRival ? '#C62828' : '#1565C0';
   var rim = isRival ? '#FF5252' : '#42A5F5';
   var ghost = document.createElement('div');
