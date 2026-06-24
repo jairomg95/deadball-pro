@@ -5228,7 +5228,8 @@ function BenchPanel(_ref9) {
     rivAsgn = _ref9.rivAsgn,
     onSubClick = _ref9.onSubClick,
     onPlayerToCanvas = _ref9.onPlayerToCanvas,
-    onDeployAll = _ref9.onDeployAll,
+    onDeployOwn = _ref9.onDeployOwn,
+    onDeployRival = _ref9.onDeployRival,
     canSub = _ref9.canSub,
     markMap = _ref9.markMap;
   var _bOpen = useState(false), benchOpen = _bOpen[0], setBenchOpen = _bOpen[1];
@@ -5389,17 +5390,32 @@ function BenchPanel(_ref9) {
       overflowX: 'hidden',
       WebkitOverflowScrolling: 'touch'
     }
-  }, onDeployAll && /*#__PURE__*/React.createElement("button", {
-    onClick: onDeployAll,
-    title: "Coloca a los 11 titulares de cada equipo en formación, sin solaparse",
-    style: {
-      display: 'block', margin: '8px 6px 0', padding: '7px 6px',
-      background: 'linear-gradient(180deg,#16351f,#0e2415)',
-      border: '1px solid #2f7a45', color: '#39FF14',
-      borderRadius: 6, fontSize: 10, fontWeight: 800, letterSpacing: 0.4,
-      cursor: 'pointer', width: 'calc(100% - 12px)'
-    }
-  }, "⊞ DESPLEGAR 11+11"), /*#__PURE__*/React.createElement("div", {
+  }, (onDeployOwn || onDeployRival) && /*#__PURE__*/React.createElement("div", {
+    style: { display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 6px 0' }
+  },
+    onDeployOwn && /*#__PURE__*/React.createElement("button", {
+      onClick: onDeployOwn,
+      title: "Coloca a tus 11 titulares en formación, sin solaparse",
+      style: {
+        display: 'block', width: '100%', padding: '7px 6px',
+        background: 'linear-gradient(180deg,#11294a,#0b1830)',
+        border: '1px solid #2f5f9a', color: '#7fb2ff',
+        borderRadius: 6, fontSize: 10, fontWeight: 800, letterSpacing: 0.3,
+        cursor: 'pointer'
+      }
+    }, "⊞ DESPLEGAR MI 11"),
+    onDeployRival && /*#__PURE__*/React.createElement("button", {
+      onClick: onDeployRival,
+      title: "Coloca a los 11 del rival en formación, sin solaparse",
+      style: {
+        display: 'block', width: '100%', padding: '7px 6px',
+        background: 'linear-gradient(180deg,#3a1414,#260d0d)',
+        border: '1px solid #9a3a3a', color: '#ff8a80',
+        borderRadius: 6, fontSize: 10, fontWeight: 800, letterSpacing: 0.3,
+        cursor: 'pointer'
+      }
+    }, "⊞ DESPLEGAR RIVAL 11")
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '8px 8px',
       borderBottom: '1px solid #12122a'
@@ -10174,49 +10190,61 @@ function MatchDayScreen(_ref28) {
     ];
     return { own: ownHalf, rival: rivalHalf };
   }
-  function deployElevens() {
+  function deployTeam(team) {
     var play = plays.find(p => p.id === pid);
     if (!play) { toast('Abre una jugada'); return; }
-    var ownStarters = (onField || []).filter(s => s.role === 'starter' || s.role === 'on_pitch').slice(0, 11);
-    var rivStarters = (rivals || []).filter(r => r.role !== 'sub').slice(0, 11);
-    if (ownStarters.length === 0 && rivStarters.length === 0) { toast('No hay titulares en este partido'); return; }
-    var hasRoles = (play.canvas_data.roles || []).length > 0;
-    var run = function () { _deployElevens(play, ownStarters, rivStarters); };
-    if (hasRoles && window.dbmConfirm) {
-      window.dbmConfirm('Esto recolocará a los titulares en formación y reemplaza lo que haya ahora en la pizarra. ¿Continuar?', { okText: 'Desplegar' }).then(function (ok) { if (ok) run(); });
+    var starters = team === 'own'
+      ? (onField || []).filter(s => s.role === 'starter' || s.role === 'on_pitch').slice(0, 11)
+      : (rivals || []).filter(r => r.role !== 'sub').slice(0, 11);
+    if (starters.length === 0) { toast(team === 'own' ? 'No tienes titulares en este partido' : 'No hay rival cargado en este partido'); return; }
+    var existing = (play.canvas_data.roles || []).filter(r => team === 'own' ? r.team !== 'rival' : r.team === 'rival');
+    var run = function () { _deployTeam(play, team, starters); };
+    if (existing.length > 0 && window.dbmConfirm) {
+      window.dbmConfirm('Recolocará a ' + (team === 'own' ? 'tu equipo' : 'el rival') + ' en formación (reemplaza los que ya estén de ese equipo). El otro equipo no se toca. ¿Continuar?', { okText: 'Desplegar' }).then(function (ok) { if (ok) run(); });
     } else run();
   }
-  function _deployElevens(play, ownStarters, rivStarters) {
+  function _deployTeam(play, team, starters) {
     pushUndo();
     var full = !!(play.canvas_data && play.canvas_data.field_full);
     var F = dbmFormation(full);
-    var newRoles = [], posMap = {}, newOwnAsgn = {}, newRivAsgn = {}, ownCalls = [], rivCalls = [];
-    ownStarters.forEach(function (s, i) {
-      var p = F.own[i] || F.own[10]; var rk = 'OWN' + (i + 1);
-      var sn = (s.player && s.player.squad_number != null) ? s.player.squad_number : null;
-      newRoles.push({ role_key: rk, label: (sn != null ? '#' + sn : ''), custom_label: (sn != null ? '#' + sn : ''), x: p.x, y: p.y, team: 'own', arrows: [] });
-      posMap[rk] = { x: p.x, y: p.y };
-      newOwnAsgn[rk] = { player_id: s.player_id, squad_number: sn, name: (s.player && s.player.name) || '', photo: (s.player && s.player.photo) || null, height: (s.player && s.player.height) || null };
-      ownCalls.push([rk, s.player_id]);
+    var slots = team === 'own' ? F.own : F.rival;
+    // Conservar los roles del OTRO equipo (no se tocan)
+    var otherRoles = (play.canvas_data.roles || []).filter(r => team === 'own' ? r.team === 'rival' : r.team !== 'rival');
+    var otherKeys = {}; otherRoles.forEach(function (r) { otherKeys[r.role_key] = 1; });
+    var newTeamRoles = [], posMap = {}, teamAsgn = {}, calls = [];
+    starters.forEach(function (s, i) {
+      var p = slots[i] || slots[10];
+      if (team === 'own') {
+        var rk = 'OWN' + (i + 1);
+        var sn = (s.player && s.player.squad_number != null) ? s.player.squad_number : null;
+        newTeamRoles.push({ role_key: rk, label: (sn != null ? '#' + sn : ''), custom_label: (sn != null ? '#' + sn : ''), x: p.x, y: p.y, team: 'own', arrows: [] });
+        posMap[rk] = { x: p.x, y: p.y };
+        teamAsgn[rk] = { player_id: s.player_id, squad_number: sn, name: (s.player && s.player.name) || '', photo: (s.player && s.player.photo) || null, height: (s.player && s.player.height) || null };
+        calls.push([rk, s.player_id]);
+      } else {
+        var rk2 = 'RIV' + (i + 1);
+        newTeamRoles.push({ role_key: rk2, label: (s.squad_number != null ? '#' + s.squad_number : ''), custom_label: (s.squad_number != null ? '#' + s.squad_number : ''), x: p.x, y: p.y, team: 'rival', arrows: [] });
+        posMap[rk2] = { x: p.x, y: p.y };
+        teamAsgn[rk2] = { id: s.id, squad_number: s.squad_number, name: s.name || '', photo: s.photo || null, height: s.height || null };
+        calls.push([rk2, s.id]);
+      }
     });
-    rivStarters.forEach(function (r, i) {
-      var p = F.rival[i] || F.rival[10]; var rk = 'RIV' + (i + 1);
-      newRoles.push({ role_key: rk, label: (r.squad_number != null ? '#' + r.squad_number : ''), custom_label: (r.squad_number != null ? '#' + r.squad_number : ''), x: p.x, y: p.y, team: 'rival', arrows: [] });
-      posMap[rk] = { x: p.x, y: p.y };
-      newRivAsgn[rk] = { id: r.id, squad_number: r.squad_number, name: r.name || '', photo: r.photo || null, height: r.height || null };
-      rivCalls.push([rk, r.id]);
-    });
+    var allRoles = otherRoles.concat(newTeamRoles);
     var phases = (play.canvas_data.phases && play.canvas_data.phases.length) ? play.canvas_data.phases : [{ id: 'p1', name: 'Inicial', positions: {} }];
-    var newPhases = phases.map(function (ph) { return _objectSpread(_objectSpread({}, ph), {}, { positions: _objectSpread({}, posMap), curves: {} }); });
-    var newPlay = _objectSpread(_objectSpread({}, play), {}, { canvas_data: _objectSpread(_objectSpread({}, play.canvas_data), {}, { roles: newRoles, phases: newPhases }) });
+    var newPhases = phases.map(function (ph) {
+      var keptPos = {};
+      Object.keys(ph.positions || {}).forEach(function (k) { if (otherKeys[k]) keptPos[k] = ph.positions[k]; });
+      var keptCurves = {};
+      if (ph.curves) Object.keys(ph.curves).forEach(function (k) { if (otherKeys[k]) keptCurves[k] = ph.curves[k]; });
+      return _objectSpread(_objectSpread({}, ph), {}, { positions: _objectSpread(_objectSpread({}, keptPos), posMap), curves: keptCurves });
+    });
+    var newPlay = _objectSpread(_objectSpread({}, play), {}, { canvas_data: _objectSpread(_objectSpread({}, play.canvas_data), {}, { roles: allRoles, phases: newPhases }) });
     savePlay(newPlay);
     setPlays(pp => pp.map(x => x.id === pid ? newPlay : x));
-    setOwnAsgn(newOwnAsgn);
-    setRivAsgn(newRivAsgn);
-    ownCalls.forEach(function (c) { try { setAssignment(matchId, pid, c[0], c[1]); } catch (e) {} });
-    rivCalls.forEach(function (c) { try { setRivalAssignment(matchId, pid, c[0], c[1]); } catch (e) {} });
+    if (team === 'own') { setOwnAsgn(teamAsgn); calls.forEach(function (c) { try { setAssignment(matchId, pid, c[0], c[1]); } catch (e) {} }); }
+    else { setRivAsgn(teamAsgn); calls.forEach(function (c) { try { setRivalAssignment(matchId, pid, c[0], c[1]); } catch (e) {} }); }
     setActivePhaseId(newPhases[0].id);
-    toast('Titulares desplegados', 'ok');
+    toast(team === 'own' ? 'Tu 11 desplegado' : '11 del rival desplegado', 'ok');
   }
   function addPhase() {
     return _addPhase.apply(this, arguments);
@@ -11468,7 +11496,8 @@ function MatchDayScreen(_ref28) {
       open: true,
       preOut: s
     }),
-    onDeployAll: deployElevens,
+    onDeployOwn: function () { deployTeam('own'); },
+    onDeployRival: function () { deployTeam('rival'); },
     canSub: canSub,
     markMap: markMap
   }), !presentMode && /*#__PURE__*/React.createElement("div", {
