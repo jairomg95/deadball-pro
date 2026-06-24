@@ -5252,19 +5252,21 @@ function BenchPanel(_ref9) {
       title: "#".concat(num, " ").concat(r.name || '').concat(r.height ? ' \xb7 ' + r.height + 'cm' : '', " \u2014 arrastra al campo"),
       style: {
         width: 36, height: 36, borderRadius: '50%',
-        background: hasPhoto ? '#0e0e1a' : (used ? '#C6282833' : '#1a1a2e'),
+        background: hasPhoto ? '#0e0e1a' : 'radial-gradient(circle at 50% 32%, #b23636, #5e1c1c)',
         backgroundImage: hasPhoto ? 'url(' + r.photo + ')' : 'none',
         backgroundSize: 'cover', backgroundPosition: 'center top',
-        border: "2px solid ".concat(used ? '#FF5252' : (hasPhoto ? '#3a3a4a' : '#FF525244')),
+        border: "2px solid ".concat(used ? '#FF5252' : (hasPhoto ? '#3a3a4a' : '#FF8A80')),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'grab', touchAction: 'none', position: 'relative',
         userSelect: 'none', flexShrink: 0, overflow: 'hidden',
+        boxShadow: hasPhoto ? 'none' : 'inset 0 -6px 10px rgba(0,0,0,0.35)',
+        opacity: used ? 0.45 : 1,
         filter: used && hasPhoto ? 'grayscale(0.4) brightness(0.85)' : 'none'
       }
     },
     !hasPhoto && /*#__PURE__*/React.createElement("span", {
-      style: { fontFamily: "'DBMono','Courier New',monospace", fontWeight: 900, fontSize: 12, color: used ? 'white' : '#FF5252' }
-    }, num),
+      style: { fontFamily: "'DBMono','Courier New',monospace", fontWeight: 900, fontSize: (num != null && num !== '' && String(num).length > 1) ? 14 : 16, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
+    }, (num != null && num !== '') ? num : (r.name ? r.name.trim().slice(0, 2).toUpperCase() : '·')),
     hasPhoto && /*#__PURE__*/React.createElement("div", {
       style: {
         position: 'absolute', bottom: -1, right: -1,
@@ -5319,15 +5321,15 @@ function BenchPanel(_ref9) {
         width: size,
         height: size,
         borderRadius: '50%',
-        background: hasPhoto ? '#0e0e1a' : (used ? "".concat(accent, "33") : '#1a1a2e'),
-        border: "2px solid ".concat(used ? accent : (hasPhoto ? '#3a3a4a' : '#2a2a3a')),
+        background: hasPhoto ? '#0e0e1a' : (assignedTeam === 'rival' ? 'radial-gradient(circle at 50% 32%, #b23636, #5e1c1c)' : 'radial-gradient(circle at 50% 32%, #2f64b8, #14274d)'),
+        border: "2px solid ".concat(used ? accent : (hasPhoto ? '#3a3a4a' : (assignedTeam === 'rival' ? '#FF8A80' : '#6aa6ff'))),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: disabled ? 'default' : onPDown ? 'grab' : 'pointer',
-        opacity: disabled ? 0.3 : 1,
+        opacity: disabled ? 0.3 : (used ? 0.45 : 1),
         flexShrink: 0, position: 'relative',
         touchAction: 'none', userSelect: 'none',
         overflow: 'hidden',
-        boxShadow: hasPhoto ? 'inset 0 -8px 14px rgba(0,0,0,0.35)' : 'none'
+        boxShadow: 'inset 0 -7px 12px rgba(0,0,0,0.35)'
       }
     },
       hasPhoto && /*#__PURE__*/React.createElement("img", {
@@ -5345,10 +5347,10 @@ function BenchPanel(_ref9) {
       !hasPhoto && /*#__PURE__*/React.createElement("span", {
         style: {
           fontFamily: "'DBMono','Courier New',monospace",
-          fontWeight: 900, fontSize: size * 0.36,
-          color: used ? 'white' : '#9ba3b8', lineHeight: 1
+          fontWeight: 900, fontSize: size * 0.42,
+          color: '#fff', lineHeight: 1, textShadow: '0 1px 2px rgba(0,0,0,0.6)'
         }
-      }, num),
+      }, (num != null && num !== '') ? num : '·'),
       // Badge con dorsal cuando hay foto (esquina inferior derecha)
       hasPhoto && /*#__PURE__*/React.createElement("div", {
         style: {
@@ -5656,18 +5658,17 @@ function PlayEditorModal(_ref1) {
     setColor = _useState14[1];
   var editing = !!play;
   function handleSave() {
-    if (!code.trim()) {
-      dbmAlert('El código es obligatorio (ej: C1)');
-      return;
-    }
-    if (!name.trim()) {
-      dbmAlert('El nombre es obligatorio');
-      return;
+    // Código y descripción ya NO son obligatorios. Si no hay código, se genera uno.
+    var c = code.trim().toUpperCase().slice(0, 4);
+    var n = name.trim();
+    if (!c) {
+      c = n ? n.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) : '';
+      if (!c) c = 'J' + Math.floor(Math.random() * 900 + 100);
     }
     onSave({
       id: (play === null || play === void 0 ? void 0 : play.id) || "play_".concat(uid()),
-      code: code.trim().toUpperCase().slice(0, 4),
-      name: name.trim(),
+      code: c,
+      name: n,
       play_type: type,
       color,
       user_created: true
@@ -10037,8 +10038,8 @@ function MatchDayScreen(_ref28) {
           var newKey = "R_".concat(uid().toUpperCase().slice(0, 4));
           var newRole = {
             role_key: newKey,
-            label: "#".concat(pd.squad_number),
-            custom_label: "#".concat(pd.squad_number),
+            label: '',
+            custom_label: '',
             x,
             y,
             team: 'own',
@@ -10076,7 +10077,7 @@ function MatchDayScreen(_ref28) {
               }
             });
           });
-          toast("#".concat(pd.squad_number, " \u2192 ").concat(newRole.custom_label), 'ok');
+          toast("#".concat(pd.squad_number, " a\u00f1adido"), 'ok');
         } else {
           // Asignar al rol vacío más cercano
           yield setAssignment(matchId, pid, empty[0].r.role_key, pd.player_id);
@@ -10092,7 +10093,7 @@ function MatchDayScreen(_ref28) {
               }
             });
           });
-          toast("#".concat(pd.squad_number, " \u2192 ").concat(empty[0].r.custom_label || empty[0].r.label), 'ok');
+          toast("#".concat(pd.squad_number, " colocado"), 'ok');
         }
       } else if (item.type === 'rival') {
         var _empty = play.canvas_data.roles.filter(r => r.team === 'rival' && !rivAsgn[r.role_key]).map(r => {
@@ -10112,8 +10113,8 @@ function MatchDayScreen(_ref28) {
           var _newKey = "RV_".concat(uid().toUpperCase().slice(0, 4));
           var _newRole = {
             role_key: _newKey,
-            label: "#".concat(item.data.squad_number),
-            custom_label: "#".concat(item.data.squad_number),
+            label: '',
+            custom_label: '',
             x,
             y,
             team: 'rival',
@@ -10160,7 +10161,7 @@ function MatchDayScreen(_ref28) {
               height: item.data.height || null
             }
           }));
-          toast("Rival #".concat(item.data.squad_number, " \u2192 ").concat(_empty[0].r.custom_label || _empty[0].r.label), 'ok');
+          toast("Rival #".concat(item.data.squad_number, " colocado"), 'ok');
         }
       }
     });
@@ -10217,13 +10218,13 @@ function MatchDayScreen(_ref28) {
       if (team === 'own') {
         var rk = 'OWN' + (i + 1);
         var sn = (s.player && s.player.squad_number != null) ? s.player.squad_number : null;
-        newTeamRoles.push({ role_key: rk, label: (sn != null ? '#' + sn : ''), custom_label: (sn != null ? '#' + sn : ''), x: p.x, y: p.y, team: 'own', arrows: [] });
+        newTeamRoles.push({ role_key: rk, label: '', custom_label: '', x: p.x, y: p.y, team: 'own', arrows: [] });
         posMap[rk] = { x: p.x, y: p.y };
         teamAsgn[rk] = { player_id: s.player_id, squad_number: sn, name: (s.player && s.player.name) || '', photo: (s.player && s.player.photo) || null, height: (s.player && s.player.height) || null };
         calls.push([rk, s.player_id]);
       } else {
         var rk2 = 'RIV' + (i + 1);
-        newTeamRoles.push({ role_key: rk2, label: (s.squad_number != null ? '#' + s.squad_number : ''), custom_label: (s.squad_number != null ? '#' + s.squad_number : ''), x: p.x, y: p.y, team: 'rival', arrows: [] });
+        newTeamRoles.push({ role_key: rk2, label: '', custom_label: '', x: p.x, y: p.y, team: 'rival', arrows: [] });
         posMap[rk2] = { x: p.x, y: p.y };
         teamAsgn[rk2] = { id: s.id, squad_number: s.squad_number, name: s.name || '', photo: s.photo || null, height: s.height || null };
         calls.push([rk2, s.id]);
