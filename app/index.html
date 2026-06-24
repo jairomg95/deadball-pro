@@ -14710,9 +14710,25 @@ ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.c
 </script>
 <script>
 if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){
-    navigator.serviceWorker.register('sw.js').catch(function(e){console.warn('SW fail',e)});
+  // Auto-actualización: cuando hay una versión nueva, se activa y la app se recarga sola una vez.
+  var __dbmReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    if (__dbmReloaded) return; __dbmReloaded = true;
+    window.location.reload();
   });
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('sw.js').then(function(reg){
+      try { reg.update(); } catch(e){}
+      // Comprobar actualizaciones cada 60s mientras la app está abierta
+      setInterval(function(){ try { reg.update(); } catch(e){} }, 60000);
+      // Comprobar también al volver a la app (cambio de pestaña/ventana)
+      document.addEventListener('visibilitychange', function(){ if (!document.hidden) { try { reg.update(); } catch(e){} } });
+    }).catch(function(e){console.warn('SW fail',e)});
+  });
+  // Permite forzar la búsqueda de actualización desde la UI
+  window.dbmCheckUpdate = function(){
+    navigator.serviceWorker.getRegistration().then(function(reg){ if (reg) { try { reg.update(); } catch(e){} } });
+  };
 }
 </script>
 
@@ -14846,6 +14862,7 @@ if('serviceWorker' in navigator){
         '<button class="act" id="dbmLogin">Entrar</button>'+
         '<button class="act sec" id="dbmSignup">Crear cuenta nueva</button>'+
         '<button id="dbmForgot" style="width:100%;margin-top:6px;background:none;border:0;color:#7fb2ff;font-size:12px;text-decoration:underline;cursor:pointer">¿Has olvidado la contraseña?</button>'+
+        '<button class="act sec" id="dbmUpd" style="margin-top:8px">↻ Buscar actualizaciones</button>'+
         '<div id="dbmSyncStatus"></div>';
       document.getElementById('dbmLogin').onclick=function(){ doAuth(false); };
       document.getElementById('dbmSignup').onclick=function(){ doAuth(true); };
@@ -14856,6 +14873,7 @@ if('serviceWorker' in navigator){
         '<button class="act" id="dbmSyncNow">Sincronizar ahora</button>'+
         '<div class="row"><button class="act sec" id="dbmPull">Bajar nube</button>'+
         '<button class="act sec" id="dbmLogout">Salir</button></div>'+
+        '<button class="act sec" id="dbmUpd" style="margin-top:8px">↻ Buscar actualizaciones</button>'+
         '<button class="act sec" id="dbmDelAcc" style="margin-top:8px;border-color:#a33;color:#f99">Eliminar mi cuenta</button>'+
         '<div id="dbmSyncStatus"></div>';
       document.getElementById('dbmSyncNow').onclick=function(){ pushToCloud(true); };
@@ -14863,6 +14881,14 @@ if('serviceWorker' in navigator){
       document.getElementById('dbmLogout').onclick=function(){ auth.signOut(); };
       document.getElementById('dbmDelAcc').onclick=function(){ deleteAccount(); };
     }
+    var upd=document.getElementById('dbmUpd');
+    if(upd) upd.onclick=function(){
+      setStatus('Actualizando a la última versión…','#9aa');
+      (window.caches?caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}):Promise.resolve())
+        .then(function(){ return navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}):null; })
+        .then(function(){ setTimeout(function(){ location.reload(); }, 300); })
+        .catch(function(){ location.reload(); });
+    };
   }
 
   // ───────────────── AUTH ─────────────────
