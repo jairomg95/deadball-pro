@@ -4522,6 +4522,7 @@ function InteractiveCanvas(_ref8) {
     onSelectAnnotation = _ref8.onSelectAnnotation,
     onAddAnnotation = _ref8.onAddAnnotation,
     onUpdateAnnotation = _ref8.onUpdateAnnotation,
+    onSetMoveCurve = _ref8.onSetMoveCurve,
     onClearAnnotTool = _ref8.onClearAnnotTool,
     _ref8$readOnly = _ref8.readOnly,
     readOnly = _ref8$readOnly === void 0 ? false : _ref8$readOnly,
@@ -4552,6 +4553,16 @@ function InteractiveCanvas(_ref8) {
     _useStateAnnDrag2 = _slicedToArray(_useStateAnnDrag, 2),
     annDrag = _useStateAnnDrag2[0],
     setAnnDrag = _useStateAnnDrag2[1];
+  // Drag del tirador de curvatura de una FLECHA (punto de control)
+  var _useStateAnnCtrl = useState(null),
+    _useStateAnnCtrl2 = _slicedToArray(_useStateAnnCtrl, 2),
+    annCtrl = _useStateAnnCtrl2[0],
+    setAnnCtrl = _useStateAnnCtrl2[1];
+  // Drag del tirador de curvatura del MOVIMIENTO de un jugador (hacia la fase siguiente)
+  var _useStateMoveCtrl = useState(null),
+    _useStateMoveCtrl2 = _slicedToArray(_useStateMoveCtrl, 2),
+    moveCtrl = _useStateMoveCtrl2[0],
+    setMoveCtrl = _useStateMoveCtrl2[1];
   var longPressRef = useRef(null);
   var startPosRef = useRef(null);
 
@@ -4598,6 +4609,7 @@ function InteractiveCanvas(_ref8) {
   }));
   var ballPos = ballDrag ? ballDrag : (interpData && interpData.ball !== undefined ? interpData.ball : ((activePhase === null || activePhase === void 0 ? void 0 : activePhase.ball) || null));
   var roleMap = Object.fromEntries(play.canvas_data.roles.map(r => [r.role_key, r]));
+  var nextPhase = (curPhaseIdx >= 0 && curPhaseIdx < phases.length - 1) ? phases[curPhaseIdx + 1] : null;
   function getCoords(e) {
     var svg = svgRef.current;
     if (!svg) return {
@@ -4684,6 +4696,10 @@ function InteractiveCanvas(_ref8) {
         });
       } else if (startPosRef.current.drawing) {
         setDrawing(d => _objectSpread(_objectSpread({}, d), {}, { x2: c.x, y2: c.y }));
+      } else if (startPosRef.current.annCtrlId) {
+        setAnnCtrl({ id: startPosRef.current.annCtrlId, cx: c.x, cy: c.y });
+      } else if (startPosRef.current.moveCtrlKey) {
+        setMoveCtrl({ role_key: startPosRef.current.moveCtrlKey, cx: c.x, cy: c.y });
       } else if (startPosRef.current.annDragId) {
         var off = startPosRef.current.annOff || { dx: 0, dy: 0 };
         setAnnDrag({ id: startPosRef.current.annDragId, dx: c.x - startPosRef.current.x, dy: c.y - startPosRef.current.y, baseDx: off.dx, baseDy: off.dy });
@@ -4703,6 +4719,8 @@ function InteractiveCanvas(_ref8) {
     var isBall = startPosRef.current.ball;
     var isDrawing = startPosRef.current.drawing;
     var annDragId = startPosRef.current.annDragId;
+    var annCtrlId = startPosRef.current.annCtrlId;
+    var moveCtrlKey = startPosRef.current.moveCtrlKey;
     var dt = Date.now() - startPosRef.current.t;
     var c = getCoords(e);
     var dx = Math.abs(c.x - startPosRef.current.x),
@@ -4713,6 +4731,12 @@ function InteractiveCanvas(_ref8) {
       setBallDrag(null);
     } else if (isDrawing) {
       finalizeDrawing(c, moved);
+    } else if (annCtrlId) {
+      if (onUpdateAnnotation) onUpdateAnnotation(annCtrlId, { cx: c.x, cy: c.y });
+      setAnnCtrl(null);
+    } else if (moveCtrlKey) {
+      if (onSetMoveCurve) onSetMoveCurve(moveCtrlKey, c.x, c.y);
+      setMoveCtrl(null);
     } else if (annDragId) {
       finalizeAnnDrag(annDragId, c);
     } else if (drag) {
@@ -4799,9 +4823,29 @@ function InteractiveCanvas(_ref8) {
     } else if (ann.type === 'arrow') {
       patch.x1 = ann.x1 + dx; patch.y1 = ann.y1 + dy;
       patch.x2 = ann.x2 + dx; patch.y2 = ann.y2 + dy;
+      if (ann.cx != null) { patch.cx = ann.cx + dx; patch.cy = ann.cy + dy; }
     }
     if (onUpdateAnnotation) onUpdateAnnotation(annId, patch);
     setAnnDrag(null);
+  }
+
+  // Tirador de curvatura de FLECHA (punto de control de la bézier)
+  function startAnnCtrlDrag(annId, e) {
+    if (readOnly) return;
+    e.stopPropagation();
+    e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
+    var c = getCoords(e);
+    startPosRef.current = { x: c.x, y: c.y, t: Date.now(), annCtrlId: annId };
+    setAnnCtrl({ id: annId, cx: c.x, cy: c.y });
+  }
+  // Tirador de curvatura del MOVIMIENTO de un jugador hacia la fase siguiente
+  function startMoveCtrlDrag(roleKey, e) {
+    if (readOnly) return;
+    e.stopPropagation();
+    e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
+    var c = getCoords(e);
+    startPosRef.current = { x: c.x, y: c.y, t: Date.now(), moveCtrlKey: roleKey };
+    setMoveCtrl({ role_key: roleKey, cx: c.x, cy: c.y });
   }
 
   // Drop zone para tokens del banquillo (manejado por parent via onTokenDrop)
@@ -4821,6 +4865,8 @@ function InteractiveCanvas(_ref8) {
         clearTimeout(longPressRef.current);
         setDrag(null);
         setBallDrag(null);
+        setAnnCtrl(null);
+        setMoveCtrl(null);
         startPosRef.current = null;
       }
     };
@@ -4980,9 +5026,18 @@ function InteractiveCanvas(_ref8) {
     if (a.type === 'arrow') {
       var x1 = a.x1 * W + dx, y1 = a.y1 * FH + dy;
       var x2 = a.x2 * W + dx, y2 = a.y2 * FH + dy;
+      // Punto de control de la curva (bézier cuadrática). Si se está arrastrando, prevalece.
+      var liveCtrl = (annCtrl && annCtrl.id === a.id) ? annCtrl : null;
+      var hasCurve = liveCtrl || (a.cx != null && a.cy != null);
+      var ctrlXn = liveCtrl ? liveCtrl.cx : a.cx;
+      var ctrlYn = liveCtrl ? liveCtrl.cy : a.cy;
+      var cxp = (hasCurve ? ctrlXn : (a.x1 + a.x2) / 2) * W + dx;
+      var cyp = (hasCurve ? ctrlYn : (a.y1 + a.y2) / 2) * FH + dy;
+      var pathD = hasCurve
+        ? ("M" + x1 + "," + y1 + " Q" + cxp + "," + cyp + " " + x2 + "," + y2)
+        : ("M" + x1 + "," + y1 + " L" + x2 + "," + y2);
       return /*#__PURE__*/React.createElement("g", {
         key: a.id,
-        onPointerDown: readOnly ? undefined : function(e) { startAnnotationDrag(a.id, e); },
         style: { cursor: readOnly ? 'default' : 'move' }
       },
         /*#__PURE__*/React.createElement("defs", null,
@@ -4995,24 +5050,35 @@ function InteractiveCanvas(_ref8) {
             fill: a.color
           }))
         ),
-        /*#__PURE__*/React.createElement("line", {
-          x1: x1, y1: y1, x2: x2, y2: y2,
-          stroke: "transparent", strokeWidth: 18
+        /*#__PURE__*/React.createElement("path", {
+          d: pathD, fill: "none",
+          stroke: "transparent", strokeWidth: 18,
+          onPointerDown: readOnly ? undefined : function(e) { startAnnotationDrag(a.id, e); }
         }),
-        /*#__PURE__*/React.createElement("line", {
-          x1: x1, y1: y1, x2: x2, y2: y2,
+        /*#__PURE__*/React.createElement("path", {
+          d: pathD, fill: "none",
           stroke: a.color, strokeWidth: sw,
           strokeLinecap: "round",
           markerEnd: "url(#ann-ah-" + a.id + ")",
-          opacity: isSel ? 1 : 0.92
+          opacity: isSel ? 1 : 0.92,
+          style: { pointerEvents: 'none' }
         }),
         isSel && /*#__PURE__*/React.createElement("circle", {
           cx: x1, cy: y1, r: 5,
-          fill: "#39FF14", stroke: "#07070e", strokeWidth: 1.5
+          fill: "#39FF14", stroke: "#07070e", strokeWidth: 1.5,
+          style: { pointerEvents: 'none' }
         }),
         isSel && /*#__PURE__*/React.createElement("circle", {
           cx: x2, cy: y2, r: 5,
-          fill: "#39FF14", stroke: "#07070e", strokeWidth: 1.5
+          fill: "#39FF14", stroke: "#07070e", strokeWidth: 1.5,
+          style: { pointerEvents: 'none' }
+        }),
+        // Tirador de curvatura (solo cuando está seleccionada): arrástralo para curvar
+        isSel && /*#__PURE__*/React.createElement("circle", {
+          cx: cxp, cy: cyp, r: 8,
+          fill: "#FFD400", stroke: "#07070e", strokeWidth: 1.5,
+          style: { cursor: 'grab' },
+          onPointerDown: readOnly ? undefined : function(e) { startAnnCtrlDrag(a.id, e); }
         })
       );
     }
@@ -5093,6 +5159,32 @@ function InteractiveCanvas(_ref8) {
     }
     return null;
   }),
+  // ── GUÍA DE MOVIMIENTO CURVO ── para cada jugador que se mueve hacia la fase siguiente.
+  // Arrastra el punto amarillo del centro de la trayectoria para curvarla a tu gusto.
+  (!readOnly && !animating && !annotTool && nextPhase) ? /*#__PURE__*/React.createElement("g", { key: 'moveguides' },
+    play.canvas_data.roles.map(function (role) {
+      var rk = role.role_key;
+      var fromP = rolePositions[rk];
+      var toRaw = (nextPhase.positions && nextPhase.positions[rk]) || null;
+      var toP = toRaw ? { x: toRaw.x, y: toRaw.y } : { x: role.x, y: role.y };
+      if (!fromP) return null;
+      if (Math.hypot(toP.x - fromP.x, toP.y - fromP.y) < 0.03) return null;
+      var curves = nextPhase.curves || {};
+      var live = (moveCtrl && moveCtrl.role_key === rk) ? moveCtrl : null;
+      var stored = curves[rk];
+      var hasC = live || stored;
+      var ccx = live ? live.cx : (stored ? stored.cx : (fromP.x + toP.x) / 2);
+      var ccy = live ? live.cy : (stored ? stored.cy : (fromP.y + toP.y) / 2);
+      var fx = fromP.x * W, fy = fromP.y * FH, tx = toP.x * W, ty = toP.y * FH, hx = ccx * W, hy = ccy * FH;
+      var col = role.team === 'rival' ? '#FF8A80' : '#39FF14';
+      var d = hasC ? ("M" + fx + "," + fy + " Q" + hx + "," + hy + " " + tx + "," + ty) : ("M" + fx + "," + fy + " L" + tx + "," + ty);
+      return /*#__PURE__*/React.createElement("g", { key: 'mg_' + rk },
+        /*#__PURE__*/React.createElement("path", { d: d, fill: "none", stroke: col, strokeWidth: 1.8, strokeDasharray: "5,5", opacity: 0.55, style: { pointerEvents: 'none' } }),
+        /*#__PURE__*/React.createElement("circle", { cx: hx, cy: hy, r: 9, fill: col, fillOpacity: 0.9, stroke: "#07070e", strokeWidth: 1.5, style: { cursor: 'grab' }, onPointerDown: function (e) { startMoveCtrlDrag(rk, e); } }),
+        /*#__PURE__*/React.createElement("circle", { cx: hx, cy: hy, r: 3, fill: "#07070e", style: { pointerEvents: 'none' } })
+      );
+    }).filter(Boolean)
+  ) : null,
   // Vista previa de anotación en proceso de dibujo
   drawing && /*#__PURE__*/React.createElement("g", {
     pointerEvents: "none",
@@ -9691,6 +9783,27 @@ function MatchDayScreen(_ref28) {
     });
     return _handleMoveRole.apply(this, arguments);
   }
+  // Guarda el punto de control de la curva del movimiento del jugador hacia la fase siguiente.
+  function handleSetMoveCurve(roleKey, cx, cy) {
+    var play = plays.find(p => p.id === pid);
+    if (!play) return;
+    var phs = play.canvas_data.phases || [];
+    var idx = phs.findIndex(p => p.id === activePhaseId);
+    if (idx < 0) idx = 0;
+    if (idx >= phs.length - 1) return;
+    pushUndo();
+    var newPhs = phs.map(function (p, i) {
+      if (i !== idx + 1) return p;
+      var curves = _objectSpread({}, p.curves || {});
+      curves[roleKey] = { cx: cx, cy: cy };
+      return _objectSpread(_objectSpread({}, p), {}, { curves: curves });
+    });
+    var newPlay = _objectSpread(_objectSpread({}, play), {}, {
+      canvas_data: _objectSpread(_objectSpread({}, play.canvas_data), {}, { phases: newPhs })
+    });
+    savePlay(newPlay);
+    setPlays(p => p.map(x => x.id === pid ? newPlay : x));
+  }
   function handleMoveBall(_x40, _x41) {
     return _handleMoveBall.apply(this, arguments);
   }
@@ -10200,13 +10313,24 @@ function MatchDayScreen(_ref28) {
       var segTo = phases[startSeg + k + 1];
       var lt = durs[k] > 0 ? Math.min(1, (elapsed - acc) / durs[k]) : 1;
       var positions = {};
+      var segCurves = segTo.curves || {};
       roles.forEach(function (r) {
         var fp = (segFrom.positions && segFrom.positions[r.role_key]) || { x: r.x, y: r.y };
         var tp = (segTo.positions && segTo.positions[r.role_key]) || fp;
-        positions[r.role_key] = {
-          x: fp.x + (tp.x - fp.x) * lt,
-          y: fp.y + (tp.y - fp.y) * lt
-        };
+        var cv = segCurves[r.role_key];
+        if (cv && cv.cx != null) {
+          // Bézier cuadrática: trayectoria curva controlada por el usuario
+          var mt = 1 - lt;
+          positions[r.role_key] = {
+            x: mt * mt * fp.x + 2 * mt * lt * cv.cx + lt * lt * tp.x,
+            y: mt * mt * fp.y + 2 * mt * lt * cv.cy + lt * lt * tp.y
+          };
+        } else {
+          positions[r.role_key] = {
+            x: fp.x + (tp.x - fp.x) * lt,
+            y: fp.y + (tp.y - fp.y) * lt
+          };
+        }
       });
       var ball = null;
       if (segFrom.ball && segTo.ball) {
@@ -11905,6 +12029,7 @@ active && /*#__PURE__*/React.createElement("button", {
     onSelectAnnotation: setSelectedAnnotId,
     onAddAnnotation: addAnnotation,
     onUpdateAnnotation: updateAnnotation,
+    onSetMoveCurve: handleSetMoveCurve,
     onClearAnnotTool: () => setAnnotTool(null),
     onMoveRole: handleMoveRole,
     onMoveBall: handleMoveBall,
