@@ -249,6 +249,50 @@ try {
   window.dbmAlert = function (msg, opts) { return build('alert', msg, null, opts); };
   window.dbmConfirm = function (msg, opts) { return build('confirm', msg, null, opts); };
   window.dbmPrompt = function (msg, def, opts) { return build('prompt', msg, def, opts); };
+  // Modal "Nuevo equipo": nombre + color (con previsualización del escudo). Resuelve {name,color} o null.
+  window.dbmNewTeam = function () {
+    return new Promise(function (resolve) {
+      var COLORS = ['#1E63D6', '#E23B3B', '#26A65B', '#F5A623', '#9C27B0', '#00B8D4', '#FF5722', '#455A64'];
+      var sel = COLORS[0];
+      var ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99996;display:flex;align-items:center;justify-content:center;background:rgba(3,3,8,0.72);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);padding:20px;animation:dbmFadeIn .15s ease both';
+      var card = document.createElement('div');
+      card.style.cssText = "width:100%;max-width:340px;background:linear-gradient(180deg,#10101f,#0a0a16);border:1px solid rgba(57,255,20,0.28);border-radius:16px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,0.7);animation:dbmPop .16s ease both;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;color:#dde1f0";
+      card.innerHTML = '<div style="font-size:15px;font-weight:700;letter-spacing:1.5px;margin-bottom:12px;color:' + ACCENT + '">NUEVO EQUIPO</div>';
+      var input = document.createElement('input'); input.type = 'text'; input.placeholder = 'Nombre del equipo';
+      input.style.cssText = 'width:100%;background:#07070f;border:1px solid #22223a;border-radius:10px;padding:10px 12px;color:#dde1f0;font-size:16px;outline:none;font-family:inherit;margin-bottom:14px';
+      card.appendChild(input);
+      var lbl = document.createElement('div'); lbl.textContent = 'COLOR DEL EQUIPO';
+      lbl.style.cssText = 'font-size:11px;font-weight:700;letter-spacing:1.5px;color:#6a7390;margin-bottom:9px';
+      card.appendChild(lbl);
+      var swRow = document.createElement('div'); swRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:9px;margin-bottom:12px';
+      var prev = document.createElement('img'); prev.style.cssText = 'width:48px;height:48px;display:block;flex-shrink:0';
+      function updPrev() { prev.src = dbmCrest(((input.value.trim()[0]) || 'E').toUpperCase(), sel); }
+      var sws = COLORS.map(function (c) {
+        var s = document.createElement('button'); s.type = 'button';
+        s.style.cssText = 'width:30px;height:30px;border-radius:50%;cursor:pointer;background:' + c + ';border:2px solid ' + (c === sel ? '#fff' : 'transparent');
+        s.onclick = function () { sel = c; sws.forEach(function (x, i) { x.style.borderColor = COLORS[i] === sel ? '#fff' : 'transparent'; }); updPrev(); };
+        swRow.appendChild(s); return s;
+      });
+      card.appendChild(swRow);
+      var prevWrap = document.createElement('div'); prevWrap.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:14px;color:#9aa1bd;font-size:13px';
+      prevWrap.appendChild(prev); var pt = document.createElement('span'); pt.textContent = 'Así quedará su escudo'; prevWrap.appendChild(pt);
+      card.appendChild(prevWrap);
+      input.addEventListener('input', updPrev); updPrev();
+      var row = document.createElement('div'); row.style.cssText = 'display:flex;gap:10px;justify-content:flex-end';
+      function mkb(t, prim) { var b = document.createElement('button'); b.textContent = t; b.style.cssText = 'min-height:38px;padding:8px 18px;border-radius:10px;font-size:13.5px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:inherit;' + (prim ? 'border:none;background:' + ACCENT + ';color:#04140a' : 'background:transparent;color:#9a9ec0;border:1px solid #25253f'); return b; }
+      function close(v) { if (ov.parentNode) ov.parentNode.removeChild(ov); document.removeEventListener('keydown', onKey, true); resolve(v); }
+      var ca = mkb('Cancelar', false); ca.onclick = function () { close(null); };
+      var ok = mkb('Crear', true); ok.onclick = function () { var n = input.value.trim(); if (!n) { input.style.borderColor = '#ff3b5c'; input.focus(); return; } close({ name: n, color: sel }); };
+      row.appendChild(ca); row.appendChild(ok); card.appendChild(row);
+      ov.appendChild(card);
+      ov.addEventListener('pointerdown', function (e) { if (e.target === ov) close(null); });
+      function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); close(null); } else if (e.key === 'Enter') { e.stopPropagation(); ok.click(); } }
+      document.addEventListener('keydown', onKey, true);
+      document.body.appendChild(ov);
+      setTimeout(function () { input.focus(); }, 30);
+    });
+  };
 })();
 </script>
 <style>
@@ -891,6 +935,29 @@ db.version(4).stores({
   });
 });
 
+// Escudo de equipo unificado: mismo diseño para todos, solo cambia color y letra.
+function dbmCrest(letter, hex) {
+  hex = hex || '#1565C0';
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">'
+    + '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + hex + '"/><stop offset="1" stop-color="#0a0a14"/></linearGradient></defs>'
+    + '<path d="M60 6 L106 22 V60 C106 92 60 114 60 114 C60 114 14 92 14 60 V22 Z" fill="url(#g)" stroke="#ffffff66" stroke-width="3"/>'
+    + '<path d="M60 16 L98 29 V60 C98 86 60 104 60 104 C60 104 22 86 22 60 V29 Z" fill="none" stroke="#ffffff22" stroke-width="2"/>'
+    + '<text x="60" y="80" font-family="Arial,Helvetica,sans-serif" font-size="54" font-weight="bold" fill="#fff" text-anchor="middle">' + letter + '</text>'
+    + '</svg>';
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+// Icono bonito para la Liga Demo (hexágono de la marca + balón)
+function dbmLeagueIcon() {
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">'
+    + '<defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15351e"/><stop offset="1" stop-color="#070b0a"/></linearGradient></defs>'
+    + '<rect x="7" y="7" width="106" height="106" rx="27" fill="url(#lg)" stroke="#39FF14" stroke-width="3"/>'
+    + '<path d="M60 27 L87 43 V73 L60 89 L33 73 V43 Z" fill="none" stroke="#39FF14" stroke-width="5" stroke-linejoin="round"/>'
+    + '<circle cx="60" cy="58" r="11" fill="#39FF14"/>'
+    + '<circle cx="60" cy="58" r="11" fill="none" stroke="#0a140a" stroke-width="2"/>'
+    + '</svg>';
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // EQUIPOS LALIGA HYPERMOTION 2025/26 (22 equipos verificados)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1210,8 +1277,8 @@ var TEAMS = [{
    id: 'eqa',
    name: 'Equipo A',
    s: 'EQA',
-   c: '#2E7D32',
-   logo: 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22120%22%20height%3D%22120%22%20viewBox%3D%220%200%20120%20120%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%232E7D32%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230a0a14%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath%20d%3D%22M60%206%20L106%2022%20V60%20C106%2092%2060%20114%2060%20114%20C60%20114%2014%2092%2014%2060%20V22%20Z%22%20fill%3D%22url%28%23g%29%22%20stroke%3D%22%23ffffff55%22%20stroke-width%3D%223%22/%3E%3Ctext%20x%3D%2260%22%20y%3D%2278%22%20font-family%3D%22Arial%22%20font-size%3D%2252%22%20font-weight%3D%22bold%22%20fill%3D%22%23fff%22%20text-anchor%3D%22middle%22%3EA%3C/text%3E%3C/svg%3E',
+   c: '#1E63D6',
+   logo: dbmCrest('A', '#1E63D6'),
    lg: 'demo-2025-26',
    div: 'demo'
  },
@@ -1220,7 +1287,7 @@ var TEAMS = [{
    name: 'Equipo B',
    s: 'EQB',
    c: '#C62828',
-   logo: 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22120%22%20height%3D%22120%22%20viewBox%3D%220%200%20120%20120%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23C62828%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230a0a14%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath%20d%3D%22M60%206%20L106%2022%20V60%20C106%2092%2060%20114%2060%20114%20C60%20114%2014%2092%2014%2060%20V22%20Z%22%20fill%3D%22url%28%23g%29%22%20stroke%3D%22%23ffffff55%22%20stroke-width%3D%223%22/%3E%3Ctext%20x%3D%2260%22%20y%3D%2278%22%20font-family%3D%22Arial%22%20font-size%3D%2252%22%20font-weight%3D%22bold%22%20fill%3D%22%23fff%22%20text-anchor%3D%22middle%22%3EB%3C/text%3E%3C/svg%3E',
+   logo: dbmCrest('B', '#C62828'),
    lg: 'demo-2025-26',
    div: 'demo'
  }
@@ -3343,7 +3410,7 @@ function _initDB() {
           id: 'demo-2025-26',
           name: 'Liga Demo (Gratis)',
           color: '#39FF14',
-          logo: null,
+          logo: dbmLeagueIcon(),
           own_team_id: 'eqa',
           created_at: new Date().toISOString()
         });
@@ -3374,6 +3441,15 @@ function _initDB() {
         localStorage.setItem('dbm_avatarColorV2', '1');
       }
     } catch (e) { console.warn('Avatar color migration:', e); }
+    // Migración v3: Equipo A azul, escudos demo unificados e icono de la Liga Demo.
+    try {
+      if (localStorage.getItem('dbm_demo_v3') !== '1') {
+        yield db.teams.update('eqa', { color: '#1E63D6', logo: dbmCrest('A', '#1E63D6') });
+        yield db.teams.update('eqb', { logo: dbmCrest('B', '#C62828') });
+        yield db.leagues.update('demo-2025-26', { logo: dbmLeagueIcon() });
+        localStorage.setItem('dbm_demo_v3', '1');
+      }
+    } catch (e) { console.warn('demo v3 migration:', e); }
     // Migración: forzar escudos correctos desde TEAMS (corrige estadios -> escudos), una vez
     try {
       if (localStorage.getItem('dbm_logos_v2') !== '1') {
@@ -13477,9 +13553,10 @@ function LeagueEditScreen(props) {
 
   function handleNewTeam() {
     if (dbmFreeLocked()) { toast('🔒 Versión Pro: actualiza para crear tus propios equipos'); return; }
-    dbmPrompt('Nombre del nuevo equipo:').then(function (name) {
-      if (!name) return;
-      createTeamInLeague(leagueId, { name: name }).then(function() { return load(); });
+    window.dbmNewTeam().then(function (res) {
+      if (!res) return;
+      var letter = ((res.name.trim()[0]) || 'E').toUpperCase();
+      createTeamInLeague(leagueId, { name: res.name, color: res.color, logo: dbmCrest(letter, res.color) }).then(function() { return load(); });
     });
   }
   function handleDeleteTeam(t) {
