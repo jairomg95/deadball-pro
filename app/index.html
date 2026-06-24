@@ -4211,7 +4211,7 @@ var Token = React.memo(function Token(_ref6) {
   var cx = role.x * W, cy = role.y * (_ref6.fh || H);
   var isRiv = team === 'rival' || role.team === 'rival';
   var hasN = num != null;
-  var hasPhoto = !!photo && hasN;
+  var hasPhoto = !!photo && String(photo).indexOf('data:image/svg') !== 0 && hasN;
   var customCol = role.color;
   var base = customCol || (isRiv ? '#C62828' : '#1565C0');
   var rim = customCol ? customCol : (isRiv ? '#FF5252' : '#42A5F5');
@@ -5241,7 +5241,7 @@ function BenchPanel(_ref9) {
   function renderRivTok(r) {
     var used = rivAssignedIds.has(r.id);
     var num = r.squad_number;
-    var hasPhoto = !!r.photo;
+    var hasPhoto = !!r.photo && String(r.photo).indexOf('data:image/svg') !== 0;
     return /*#__PURE__*/React.createElement("div", {
       key: r.id,
       onPointerDown: e => {
@@ -5260,7 +5260,7 @@ function BenchPanel(_ref9) {
         cursor: 'grab', touchAction: 'none', position: 'relative',
         userSelect: 'none', flexShrink: 0, overflow: 'hidden',
         boxShadow: hasPhoto ? 'none' : 'inset 0 -6px 10px rgba(0,0,0,0.35)',
-        opacity: used ? 0.45 : 1,
+        opacity: used ? 0.72 : 1,
         filter: used && hasPhoto ? 'grayscale(0.4) brightness(0.85)' : 'none'
       }
     },
@@ -5311,7 +5311,7 @@ function BenchPanel(_ref9) {
       size = _ref0$size === void 0 ? 44 : _ref0$size,
       disabled = _ref0.disabled;
     var accent = assignedTeam === 'rival' ? '#FF5252' : '#42A5F5';
-    var hasPhoto = !!photo;
+    var hasPhoto = !!photo && String(photo).indexOf('data:image/svg') !== 0;
     var badgeSize = Math.max(15, Math.round(size * 0.42));
     return /*#__PURE__*/React.createElement("div", {
       onPointerDown: onPDown,
@@ -5325,7 +5325,7 @@ function BenchPanel(_ref9) {
         border: "2px solid ".concat(used ? accent : (hasPhoto ? '#3a3a4a' : (assignedTeam === 'rival' ? '#FF8A80' : '#6aa6ff'))),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: disabled ? 'default' : onPDown ? 'grab' : 'pointer',
-        opacity: disabled ? 0.3 : (used ? 0.45 : 1),
+        opacity: disabled ? 0.3 : (used ? 0.72 : 1),
         flexShrink: 0, position: 'relative',
         touchAction: 'none', userSelect: 'none',
         overflow: 'hidden',
@@ -5460,26 +5460,26 @@ function BenchPanel(_ref9) {
       title: "#".concat(num, " ").concat(((_s$player2 = s.player) === null || _s$player2 === void 0 ? void 0 : _s$player2.name) || '').concat(((_s$player2 = s.player) === null || _s$player2 === void 0 ? void 0 : _s$player2.height) ? ' · ' + s.player.height + 'cm' : '', " \u2014 arrastra al campo o tap para sustituir"),
       style: {
         width: 40, height: 40, borderRadius: '50%',
-        background: s.player && s.player.photo ? '#0e0e1a' : (isSub ? 'radial-gradient(circle at 50% 30%, #34c759, #166b32)' : 'radial-gradient(circle at 50% 30%, #3f80e6, #1b3d77)'),
-        backgroundImage: s.player && s.player.photo ? 'url(' + s.player.photo + ')' : 'none',
+        background: s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? '#0e0e1a' : (isSub ? 'radial-gradient(circle at 50% 30%, #34c759, #166b32)' : 'radial-gradient(circle at 50% 30%, #3f80e6, #1b3d77)'),
+        backgroundImage: s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? 'url(' + s.player.photo + ')' : 'none',
         backgroundSize: 'cover', backgroundPosition: 'center top',
         border: "2px solid ".concat(hm ? '#FF8C00' : isSub ? '#39FF14' : used ? '#42A5F5' : '#7fb4ff'),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'grab', touchAction: 'none', position: 'relative',
         userSelect: 'none', flexShrink: 0,
-        boxShadow: hm ? '0 0 8px #FF8C0055' : (s.player && s.player.photo ? 'none' : 'inset 0 -7px 12px rgba(0,0,0,0.35)'),
+        boxShadow: hm ? '0 0 8px #FF8C0055' : (s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? 'none' : 'inset 0 -7px 12px rgba(0,0,0,0.35)'),
         overflow: 'hidden',
-        opacity: used ? 0.5 : 1,
-        filter: used && s.player && s.player.photo ? 'grayscale(0.4) brightness(0.85)' : 'none'
+        opacity: used ? 0.72 : 1,
+        filter: used && s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? 'grayscale(0.4) brightness(0.85)' : 'none'
       }
-    }, !(s.player && s.player.photo) && /*#__PURE__*/React.createElement("span", {
+    }, !(s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0) && /*#__PURE__*/React.createElement("span", {
       style: {
         fontFamily: "'DBMono','Courier New',monospace",
         fontWeight: 900, fontSize: 15,
         color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.6)'
       }
     }, num),
-    s.player && s.player.photo && /*#__PURE__*/React.createElement("div", {
+    s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 && /*#__PURE__*/React.createElement("div", {
       style: {
         position: 'absolute', bottom: -1, right: -1,
         width: 17, height: 17, borderRadius: '50%',
@@ -5492,7 +5492,7 @@ function BenchPanel(_ref9) {
         boxShadow: '0 1px 3px rgba(0,0,0,0.6)'
       }
     }, num),
-    used && !(s.player && s.player.photo) && /*#__PURE__*/React.createElement("div", {
+    used && !(s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0) && /*#__PURE__*/React.createElement("div", {
       style: {
         position: 'absolute', top: -3, right: -3,
         width: 9, height: 9, borderRadius: '50%',
@@ -5541,23 +5541,23 @@ function BenchPanel(_ref9) {
       title: "#".concat(num, " ").concat(((_s$player4 = s.player) === null || _s$player4 === void 0 ? void 0 : _s$player4.name) || '').concat(((_s$player4 = s.player) === null || _s$player4 === void 0 ? void 0 : _s$player4.height) ? ' · ' + s.player.height + 'cm' : '', " \u2014 arrastra al campo"),
       style: {
         width: 36, height: 36, borderRadius: '50%',
-        background: s.player && s.player.photo ? '#0e0e1a' : (used ? '#1565C033' : '#1a1a2e'),
-        backgroundImage: s.player && s.player.photo ? 'url(' + s.player.photo + ')' : 'none',
+        background: s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? '#0e0e1a' : (used ? '#1565C033' : '#1a1a2e'),
+        backgroundImage: s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? 'url(' + s.player.photo + ')' : 'none',
         backgroundSize: 'cover', backgroundPosition: 'center top',
-        border: "2px solid ".concat(used ? '#42A5F5' : (s.player && s.player.photo ? '#3a3a4a' : '#2a2a3a')),
+        border: "2px solid ".concat(used ? '#42A5F5' : (s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? '#3a3a4a' : '#2a2a3a')),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'grab', touchAction: 'none', position: 'relative',
         userSelect: 'none', flexShrink: 0, overflow: 'hidden',
-        filter: used && s.player && s.player.photo ? 'grayscale(0.4) brightness(0.85)' : 'none'
+        filter: used && s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? 'grayscale(0.4) brightness(0.85)' : 'none'
       }
-    }, !(s.player && s.player.photo) && /*#__PURE__*/React.createElement("span", {
+    }, !(s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0) && /*#__PURE__*/React.createElement("span", {
       style: {
         fontFamily: "'DBMono','Courier New',monospace",
         fontWeight: 900, fontSize: 12,
         color: used ? '#42A5F5' : '#9ba3b8'
       }
     }, num),
-    s.player && s.player.photo && /*#__PURE__*/React.createElement("div", {
+    s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 && /*#__PURE__*/React.createElement("div", {
       style: {
         position: 'absolute', bottom: -1, right: -1,
         width: 15, height: 15, borderRadius: '50%',
@@ -5569,7 +5569,7 @@ function BenchPanel(_ref9) {
         boxShadow: '0 1px 3px rgba(0,0,0,0.6)'
       }
     }, num),
-    used && !(s.player && s.player.photo) && /*#__PURE__*/React.createElement("div", {
+    used && !(s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0) && /*#__PURE__*/React.createElement("div", {
       style: {
         position: 'absolute', top: -3, right: -3,
         width: 8, height: 8, borderRadius: '50%',
@@ -10221,7 +10221,7 @@ function MatchDayScreen(_ref28) {
         var sn = (s.player && s.player.squad_number != null) ? s.player.squad_number : null;
         newTeamRoles.push({ role_key: rk, label: '', custom_label: '', x: p.x, y: p.y, team: 'own', arrows: [] });
         posMap[rk] = { x: p.x, y: p.y };
-        teamAsgn[rk] = { player_id: s.player_id, squad_number: sn, name: (s.player && s.player.name) || '', photo: (s.player && s.player.photo) || null, height: (s.player && s.player.height) || null };
+        teamAsgn[rk] = { player_id: s.player_id, squad_number: sn, name: (s.player && s.player.name) || '', photo: (s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0) || null, height: (s.player && s.player.height) || null };
         calls.push([rk, s.player_id]);
       } else {
         var rk2 = 'RIV' + (i + 1);
