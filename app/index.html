@@ -5252,7 +5252,7 @@ function BenchPanel(_ref9) {
       title: "#".concat(num, " ").concat(r.name || '').concat(r.height ? ' \xb7 ' + r.height + 'cm' : '', " \u2014 arrastra al campo"),
       style: {
         width: 36, height: 36, borderRadius: '50%',
-        background: hasPhoto ? '#0e0e1a' : 'radial-gradient(circle at 50% 32%, #b23636, #5e1c1c)',
+        background: hasPhoto ? '#0e0e1a' : 'radial-gradient(circle at 50% 30%, #e04848, #6e1f1f)',
         backgroundImage: hasPhoto ? 'url(' + r.photo + ')' : 'none',
         backgroundSize: 'cover', backgroundPosition: 'center top',
         border: "2px solid ".concat(used ? '#FF5252' : (hasPhoto ? '#3a3a4a' : '#FF8A80')),
@@ -5321,7 +5321,7 @@ function BenchPanel(_ref9) {
         width: size,
         height: size,
         borderRadius: '50%',
-        background: hasPhoto ? '#0e0e1a' : (assignedTeam === 'rival' ? 'radial-gradient(circle at 50% 32%, #b23636, #5e1c1c)' : 'radial-gradient(circle at 50% 32%, #2f64b8, #14274d)'),
+        background: hasPhoto ? '#0e0e1a' : (assignedTeam === 'rival' ? 'radial-gradient(circle at 50% 30%, #e04848, #6e1f1f)' : 'radial-gradient(circle at 50% 30%, #3f80e6, #1b3d77)'),
         border: "2px solid ".concat(used ? accent : (hasPhoto ? '#3a3a4a' : (assignedTeam === 'rival' ? '#FF8A80' : '#6aa6ff'))),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: disabled ? 'default' : onPDown ? 'grab' : 'pointer',
@@ -5460,22 +5460,23 @@ function BenchPanel(_ref9) {
       title: "#".concat(num, " ").concat(((_s$player2 = s.player) === null || _s$player2 === void 0 ? void 0 : _s$player2.name) || '').concat(((_s$player2 = s.player) === null || _s$player2 === void 0 ? void 0 : _s$player2.height) ? ' · ' + s.player.height + 'cm' : '', " \u2014 arrastra al campo o tap para sustituir"),
       style: {
         width: 40, height: 40, borderRadius: '50%',
-        background: s.player && s.player.photo ? '#0e0e1a' : (used ? '#1565C033' : isSub ? '#39FF1422' : '#1565C022'),
+        background: s.player && s.player.photo ? '#0e0e1a' : (isSub ? 'radial-gradient(circle at 50% 30%, #34c759, #166b32)' : 'radial-gradient(circle at 50% 30%, #3f80e6, #1b3d77)'),
         backgroundImage: s.player && s.player.photo ? 'url(' + s.player.photo + ')' : 'none',
         backgroundSize: 'cover', backgroundPosition: 'center top',
-        border: "2px solid ".concat(hm ? '#FF8C00' : isSub ? '#39FF14' : used ? '#42A5F5' : '#42A5F555'),
+        border: "2px solid ".concat(hm ? '#FF8C00' : isSub ? '#39FF14' : used ? '#42A5F5' : '#7fb4ff'),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'grab', touchAction: 'none', position: 'relative',
         userSelect: 'none', flexShrink: 0,
-        boxShadow: hm ? '0 0 8px #FF8C0055' : 'none',
+        boxShadow: hm ? '0 0 8px #FF8C0055' : (s.player && s.player.photo ? 'none' : 'inset 0 -7px 12px rgba(0,0,0,0.35)'),
         overflow: 'hidden',
+        opacity: used ? 0.5 : 1,
         filter: used && s.player && s.player.photo ? 'grayscale(0.4) brightness(0.85)' : 'none'
       }
     }, !(s.player && s.player.photo) && /*#__PURE__*/React.createElement("span", {
       style: {
         fontFamily: "'DBMono','Courier New',monospace",
-        fontWeight: 900, fontSize: 14,
-        color: isSub ? '#39FF14' : '#42A5F5'
+        fontWeight: 900, fontSize: 15,
+        color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.6)'
       }
     }, num),
     s.player && s.player.photo && /*#__PURE__*/React.createElement("div", {
