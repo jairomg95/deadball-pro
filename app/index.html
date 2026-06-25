@@ -11812,7 +11812,9 @@ function MatchDayScreen(_ref28) {
       style: {
         display: 'flex',
         alignItems: 'center',
-        gap: 5
+        gap: 6,
+        flexWrap: 'wrap',
+        rowGap: 3
       }
     }, idx < 9 && /*#__PURE__*/React.createElement("span", {
       style: {
@@ -11831,13 +11833,10 @@ function MatchDayScreen(_ref28) {
         fontWeight: 900,
         fontSize: 17,
         color: active ? p.color : p.color + 'cc',
-        lineHeight: 1
+        lineHeight: 1,
+        marginRight: 'auto'
       }
-    }, p.code), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: 1
-      }
-    }), uses > 0 && /*#__PURE__*/React.createElement("span", {
+    }, p.code), uses > 0 && /*#__PURE__*/React.createElement("span", {
       title: "".concat(uses, " ejecuciones"),
       style: {
         fontSize: 9,
@@ -11894,14 +11893,15 @@ function MatchDayScreen(_ref28) {
         e.stopPropagation();
         setPlayEditMod(p);
       },
-      title: "Editar",
+      title: "Editar jugada",
       style: {
-        background: 'transparent',
-        border: 'none',
-        color: '#4a5568',
+        background: '#7fb2ff18',
+        border: '1px solid #7fb2ff55',
+        color: '#7fb2ff',
         cursor: 'pointer',
-        padding: '1px 3px',
-        fontSize: 11
+        padding: '2px 6px',
+        fontSize: 13,
+        borderRadius: 3
       }
     }, "\u270E")), /*#__PURE__*/React.createElement("button", {
       onClick: e => {
@@ -11945,27 +11945,17 @@ function MatchDayScreen(_ref28) {
       }
     }, "\xD7")), /*#__PURE__*/React.createElement("div", {
       style: {
-        fontSize: 9,
-        fontWeight: 700,
-        marginTop: 1,
-        color: active ? p.color + 'aa' : '#1e1e30',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis'
-      }
-    }, p.name), /*#__PURE__*/React.createElement("div", {
-      style: {
         display: 'flex',
         alignItems: 'center',
         gap: 5,
-        marginTop: 3
+        marginTop: 4
       }
-    }, /*#__PURE__*/React.createElement("span", {
+    }, (ur.length === 0 || uCount > 0) && /*#__PURE__*/React.createElement("span", {
       style: {
         fontSize: 9,
-        color: uCount === 0 ? '#39FF14' : '#ffaa00'
+        color: '#ffaa00', fontWeight: 700, whiteSpace: 'nowrap'
       }
-    }, ur.length === 0 ? 'sin roles' : uCount === 0 ? '✓ lista' : "".concat(uCount, " sin asignar")),
+    }, ur.length === 0 ? 'sin roles' : "⚠ ".concat(uCount, " sin asignar")),
 /*#__PURE__*/React.createElement("div", { style: { flex: 1 } }),
 (function(){ var pt = PLAY_TYPES.find(function(t){ return t.id === p.play_type; }); return pt ? /*#__PURE__*/React.createElement("span", { style: { fontSize: 8, color: pt.defaultColor, fontWeight: 700, background: pt.defaultColor + '18', border: '1px solid ' + pt.defaultColor + '33', borderRadius: 2, padding: '0 4px', letterSpacing: 0.3, whiteSpace: 'nowrap' } }, pt.label.toUpperCase()) : null; })(),
 active && /*#__PURE__*/React.createElement("button", {
