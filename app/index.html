@@ -250,16 +250,18 @@ try {
   window.dbmConfirm = function (msg, opts) { return build('confirm', msg, null, opts); };
   window.dbmPrompt = function (msg, def, opts) { return build('prompt', msg, def, opts); };
   // Modal "Nuevo equipo": nombre + color (con previsualización del escudo). Resuelve {name,color} o null.
-  window.dbmNewTeam = function () {
+  window.dbmNewTeam = function (init) {
+    init = init || {};
     return new Promise(function (resolve) {
-      var COLORS = ['#1E63D6', '#E23B3B', '#26A65B', '#F5A623', '#9C27B0', '#00B8D4', '#FF5722', '#455A64'];
-      var sel = COLORS[0];
+      var COLORS = ['#1E63D6', '#E23B3B', '#26A65B', '#F5A623', '#9C27B0', '#00B8D4', '#FF5722', '#455A64', '#FFFFFF', '#222222'];
+      if (init.color && COLORS.indexOf(init.color) < 0) COLORS.unshift(init.color);
+      var sel = init.color || COLORS[0];
       var ov = document.createElement('div');
       ov.style.cssText = 'position:fixed;inset:0;z-index:99996;display:flex;align-items:center;justify-content:center;background:rgba(3,3,8,0.72);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);padding:20px;animation:dbmFadeIn .15s ease both';
       var card = document.createElement('div');
       card.style.cssText = "width:100%;max-width:340px;background:linear-gradient(180deg,#10101f,#0a0a16);border:1px solid rgba(57,255,20,0.28);border-radius:16px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,0.7);animation:dbmPop .16s ease both;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;color:#dde1f0";
-      card.innerHTML = '<div style="font-size:15px;font-weight:700;letter-spacing:1.5px;margin-bottom:12px;color:' + ACCENT + '">NUEVO EQUIPO</div>';
-      var input = document.createElement('input'); input.type = 'text'; input.placeholder = 'Nombre del equipo';
+      card.innerHTML = '<div style="font-size:15px;font-weight:700;letter-spacing:1.5px;margin-bottom:12px;color:' + ACCENT + '">' + (init.title || 'NUEVO EQUIPO') + '</div>';
+      var input = document.createElement('input'); input.type = 'text'; input.placeholder = 'Nombre del equipo'; input.value = init.name || '';
       input.style.cssText = 'width:100%;background:#07070f;border:1px solid #22223a;border-radius:10px;padding:10px 12px;color:#dde1f0;font-size:16px;outline:none;font-family:inherit;margin-bottom:14px';
       card.appendChild(input);
       var lbl = document.createElement('div'); lbl.textContent = 'COLOR DEL EQUIPO';
@@ -283,7 +285,7 @@ try {
       function mkb(t, prim) { var b = document.createElement('button'); b.textContent = t; b.style.cssText = 'min-height:38px;padding:8px 18px;border-radius:10px;font-size:13.5px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:inherit;' + (prim ? 'border:none;background:' + ACCENT + ';color:#04140a' : 'background:transparent;color:#9a9ec0;border:1px solid #25253f'); return b; }
       function close(v) { if (ov.parentNode) ov.parentNode.removeChild(ov); document.removeEventListener('keydown', onKey, true); resolve(v); }
       var ca = mkb('Cancelar', false); ca.onclick = function () { close(null); };
-      var ok = mkb('Crear', true); ok.onclick = function () { var n = input.value.trim(); if (!n) { input.style.borderColor = '#ff3b5c'; input.focus(); return; } close({ name: n, color: sel }); };
+      var ok = mkb(init.okText || 'Crear', true); ok.onclick = function () { var n = input.value.trim(); if (!n) { input.style.borderColor = '#ff3b5c'; input.focus(); return; } close({ name: n, color: sel }); };
       row.appendChild(ca); row.appendChild(ok); card.appendChild(row);
       ov.appendChild(card);
       ov.addEventListener('pointerdown', function (e) { if (e.target === ov) close(null); });
@@ -956,6 +958,24 @@ function dbmLeagueIcon() {
     + '<circle cx="60" cy="58" r="11" fill="none" stroke="#0a140a" stroke-width="2"/>'
     + '</svg>';
   return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+// Plantilla por defecto: 20 jugadores repartidos en posiciones reales (dorsales clásicos).
+function dbmDefaultSquad(teamId, color) {
+  var plan = [
+    [1, 'GK'], [13, 'GK'],
+    [2, 'RB'], [3, 'LB'], [4, 'CB'], [5, 'CB'], [15, 'CB'], [24, 'RB'],
+    [6, 'CDM'], [8, 'CM'], [14, 'CM'], [16, 'CDM'],
+    [10, 'CAM'], [18, 'CAM'],
+    [7, 'RW'], [11, 'LW'], [17, 'RW'], [21, 'LW'],
+    [9, 'ST'], [19, 'ST']
+  ];
+  return plan.map(function (p) {
+    return {
+      id: teamId + '_' + String(p[0]).padStart(2, '0'),
+      team_id: teamId, squad_number: p[0], name: '', position: p[1],
+      height: null, photo: dbmAvatar({ num: p[0] }, color || '#1565C0'), is_active: true
+    };
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3578,14 +3598,22 @@ function deleteLeague(id) {
 }
 function createTeamInLeague(leagueId, data) {
   var id = data.id || ('tm_' + uid());
+  var color = data.color || '#1565C0';
   return db.teams.put({
     id: id,
     league_id: leagueId,
     name: data.name || 'Nuevo equipo',
     short_name: data.short_name || (data.name || 'EQ').substring(0, 3).toUpperCase(),
-    color: data.color || '#1565C0',
+    color: color,
     logo: data.logo || null
-  }).then(function() { return id; });
+  }).then(function() {
+    if (data.seedSquad === false) return id;
+    // Sembrar 20 jugadores por defecto si el equipo no tiene plantilla.
+    return db.players.where('team_id').equals(id).count().then(function(c) {
+      if (c > 0) return id;
+      return db.players.bulkAdd(dbmDefaultSquad(id, color)).then(function() { return id; }).catch(function() { return id; });
+    });
+  });
 }
 function deleteTeamFromLeague(teamId) {
   return db.transaction('rw', [db.teams, db.players], function() {
@@ -4290,8 +4318,9 @@ var Token = React.memo(function Token(_ref6) {
   var hasN = num != null;
   var hasPhoto = !!photo && String(photo).indexOf('data:image/svg') !== 0 && hasN;
   var customCol = role.color;
-  var base = customCol || (isRiv ? '#C62828' : '#1565C0');
-  var rim = customCol ? customCol : (isRiv ? '#FF5252' : '#42A5F5');
+  var teamColor = _ref6.teamColor;
+  var base = customCol || teamColor || (isRiv ? '#C62828' : '#1565C0');
+  var rim = customCol || teamColor || (isRiv ? '#FF5252' : '#42A5F5');
   var fs = hasN ? (num >= 10 ? Math.round(R * 0.61) : Math.round(R * 0.78)) : Math.round(R * 0.44);
   // Etiqueta opcional: si se ha definido (aunque sea vacía) se respeta; si no, cae al label/role_key.
   var lbl = (customLabel !== undefined && customLabel !== null) ? customLabel : (role.label || role.role_key.replace(/_/g, ' '));
@@ -4457,6 +4486,8 @@ function Ball(_ref7) {
 // ══════════════════════════════════════════════════════════════════════════════
 function Pizarra3D(_p) {
   var play = _p.play, ownAsgn = _p.ownAsgn || {}, rivAsgn = _p.rivAsgn || {}, activePhaseId = _p.activePhaseId, interpData = _p.interpData, light = _p.light;
+  function _hx3(c, def) { c = String(c || def).replace('#', ''); if (c.length === 3) c = c.replace(/(.)/g, '$1$1'); var n = parseInt(c, 16); return isNaN(n) ? parseInt(def, 16) : n; }
+  var ownCol3 = _hx3(_p.ownColor, '2b6fff'), rivCol3 = _hx3(_p.rivColor, 'e23b3b');
   var mountRef = useRef(null);
   var dataRef = useRef({});
   var phases = (play.canvas_data.phases) || [];
@@ -4512,7 +4543,7 @@ function Pizarra3D(_p) {
     var tokens = {};
     (play.canvas_data.roles || []).forEach(function(r){
       var isRiv = r.team === 'rival';
-      var col = isRiv ? 0xe23b3b : 0x2b6fff;
+      var col = isRiv ? rivCol3 : ownCol3;
       var g = new THREE.Group();
       var cyl = new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,0.5,24), new THREE.MeshLambertMaterial({ color: col })); cyl.position.y=0.25; g.add(cyl);
       var asg = isRiv ? rivAsgn[r.role_key] : ownAsgn[r.role_key];
@@ -4571,7 +4602,7 @@ function Pizarra3D(_p) {
       try { renderer.dispose(); } catch(e){}
       if (renderer.domElement && renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
     };
-  }, [play.id, full, annList.length, light]);
+  }, [play.id, full, annList.length, light, ownCol3, rivCol3]);
   if (typeof THREE === 'undefined') {
     return React.createElement('div', { style:{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'#6a7390', fontSize:13, background:'#0a0e12', zIndex:5 } }, 'Cargando 3D…');
   }
@@ -5082,6 +5113,7 @@ function InteractiveCanvas(_ref8) {
       R: Math.round(baseR * tokenScale),
       dragging: isDragging,
       team: role.team,
+      teamColor: isRiv ? _ref8.rivColor : _ref8.ownColor,
       fh: FH,
       onPointerDown: readOnly ? undefined : e => handlePointerDown(role, e)
     });
@@ -12224,14 +12256,18 @@ active && /*#__PURE__*/React.createElement("button", {
     onRoleClick: role => setRoleEditMod(role),
     onRoleLongPress: role => setRoleEditMod(role),
     onTokenDrop: handleTokenDrop,
-    light: pitchLight
+    light: pitchLight,
+    ownColor: (homeTeam && homeTeam.color) || '#1565C0',
+    rivColor: (awayTeam && awayTeam.color) || '#C62828'
   }), view3d && curPlay && /*#__PURE__*/React.createElement(Pizarra3D, {
     play: curPlay,
     ownAsgn: ownAsgn,
     rivAsgn: rivAsgn,
     activePhaseId: activePhaseId,
     interpData: interpData,
-    light: pitchLight
+    light: pitchLight,
+    ownColor: (homeTeam && homeTeam.color) || '#1565C0',
+    rivColor: (awayTeam && awayTeam.color) || '#C62828'
   }), !curPlay && /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'absolute',
@@ -13559,6 +13595,16 @@ function LeagueEditScreen(props) {
       createTeamInLeague(leagueId, { name: res.name, color: res.color, logo: dbmCrest(letter, res.color) }).then(function() { return load(); });
     });
   }
+  function handleEditTeam(t) {
+    window.dbmNewTeam({ name: t.name, color: t.color, title: 'EDITAR EQUIPO', okText: 'Guardar' }).then(function (res) {
+      if (!res) return;
+      var letter = ((res.name.trim()[0]) || 'E').toUpperCase();
+      // Conservar foto/escudo real subido por el usuario; regenerar solo si es escudo automático o falta.
+      var keepLogo = t.logo && String(t.logo).indexOf('data:image/svg') !== 0;
+      var newLogo = keepLogo ? t.logo : dbmCrest(letter, res.color);
+      db.teams.update(t.id, { name: res.name, color: res.color, logo: newLogo }).then(function () { return load(); });
+    });
+  }
   function handleDeleteTeam(t) {
     dbmConfirm('¿Eliminar "' + t.name + '" y toda su plantilla?', { danger: true }).then(function (ok) {
       if (!ok) return;
@@ -13628,6 +13674,11 @@ function LeagueEditScreen(props) {
               onClick: function() { onEditSquad(t.id); },
               style: { background: 'transparent', color: '#9ba3b8', border: '1px solid #2a2a3a', borderRadius: 3, padding: '5px 8px', fontSize: 9, fontWeight: 700, cursor: 'pointer' }
             }, 'PLANTILLA'),
+            React.createElement('button', {
+              onClick: function() { handleEditTeam(t); },
+              title: 'Editar nombre y color',
+              style: { background: 'transparent', color: '#7fb2ff', border: '1px solid #2f5f9a55', borderRadius: 3, padding: '5px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }
+            }, '✎'),
             React.createElement('button', {
               onClick: function() { handleDeleteTeam(t); },
               style: { background: 'transparent', color: '#E63946', border: '1px solid #E6394644', borderRadius: 3, padding: '5px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }
