@@ -4378,6 +4378,7 @@ var Token = React.memo(function Token(_ref6) {
         style: { fontFamily: "'DBMono','Courier New',monospace", pointerEvents: 'none' }
       }, num),
       React.createElement("image", {
+        key: photo,
         href: photo,
         x: -R, y: -R,
         width: R * 2, height: R * 2,
@@ -12244,7 +12245,6 @@ active && /*#__PURE__*/React.createElement("button", {
       minHeight: 0
     }
   }, curPlay && /*#__PURE__*/React.createElement(InteractiveCanvas, {
-    key: 'ic' + icNonce,
     play: curPlay,
     ownAsgn: ownAsgn,
     rivAsgn: rivAsgn,
