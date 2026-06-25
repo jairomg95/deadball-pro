@@ -324,6 +324,9 @@ try {
   }
   /* El cajón abierto: scroll propio y sombra clara. */
   .dbm-side-roster, .dbm-side-plays { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  /* Tarjeta de partido compacta en móvil (evita que "EN VIVO" se superponga al nombre). */
+  .dbm-mc { gap: 7px !important; padding: 11px 10px !important; }
+  .dbm-mc > div { min-width: 0 !important; }
 }
 </style>
 <script>
@@ -4366,13 +4369,21 @@ var Token = React.memo(function Token(_ref6) {
           React.createElement("circle", { r: R - 1 })
         )
       ),
-      React.createElement("circle", { r: R, fill: "#0e0e1a" }),
+      // Fondo = color del equipo + dorsal, por si la foto no carga (móvil/URL caída): se ve el número, no negro.
+      React.createElement("circle", { r: R, fill: base, stroke: rim, strokeWidth: 1.5 }),
+      React.createElement("text", {
+        textAnchor: "middle", dominantBaseline: "central",
+        fontSize: num >= 10 ? Math.round(R * 0.58) : Math.round(R * 0.74),
+        fontWeight: "900", fill: "rgba(255,255,255,0.92)",
+        style: { fontFamily: "'DBMono','Courier New',monospace", pointerEvents: 'none' }
+      }, num),
       React.createElement("image", {
         href: photo,
         x: -R, y: -R,
         width: R * 2, height: R * 2,
         clipPath: "url(#" + photoClipId + ")",
         preserveAspectRatio: "xMidYMid slice",
+        onError: function (e) { try { e.target.style.display = 'none'; } catch (_) {} },
         style: { pointerEvents: 'none' }
       }),
       // Anillo
@@ -7561,6 +7572,7 @@ function MatchCard(_ref21) {
   var aColor = (m.awayTeam && m.awayTeam.color) || '#FF5252';
   return /*#__PURE__*/React.createElement("div", {
     onClick: onClick,
+    className: 'dbm-mc',
     style: {
       position: 'relative',
       background: 'linear-gradient(135deg, ' + hColor + '0a 0%, #0e0e1a 30%, #0e0e1a 70%, ' + aColor + '0a 100%)',
