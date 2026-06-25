@@ -9064,6 +9064,7 @@ function MatchDayScreen(_ref28) {
     setRivalSubs = _useStateRivalSubs[1];
   var _useNowTick = useState(0), nowTick = _useNowTick[0], setNowTick = _useNowTick[1];
   var _useV3d = useState(false), view3d = _useV3d[0], setView3d = _useV3d[1];
+  var _useIcN = useState(0), icNonce = _useIcN[0], setIcNonce = _useIcN[1]; // fuerza remontar la pizarra (p.ej. tras desplegar 11) para que carguen las fotos
   var _useLight = useState(function(){ try { return localStorage.getItem('dbm_pitch_light') === '1'; } catch(e){ return false; } }), pitchLight = _useLight[0], setPitchLight = _useLight[1];
   function togglePitchLight() { setPitchLight(function(v){ var nv = !v; try { localStorage.setItem('dbm_pitch_light', nv ? '1' : '0'); } catch(e){} return nv; }); }
   var UNDO_WINDOW_MS = 120000;
@@ -10375,6 +10376,7 @@ function MatchDayScreen(_ref28) {
     if (team === 'own') { setOwnAsgn(teamAsgn); calls.forEach(function (c) { try { setAssignment(matchId, pid, c[0], c[1]); } catch (e) {} }); }
     else { setRivAsgn(teamAsgn); calls.forEach(function (c) { try { setRivalAssignment(matchId, pid, c[0], c[1]); } catch (e) {} }); }
     setActivePhaseId(newPhases[0].id);
+    setIcNonce(function (n) { return n + 1; }); // remonta la pizarra para que las fotos carguen ya
     toast(team === 'own' ? 'Tu 11 desplegado' : '11 del rival desplegado', 'ok');
   }
   function addPhase() {
@@ -12242,6 +12244,7 @@ active && /*#__PURE__*/React.createElement("button", {
       minHeight: 0
     }
   }, curPlay && /*#__PURE__*/React.createElement(InteractiveCanvas, {
+    key: 'ic' + icNonce,
     play: curPlay,
     ownAsgn: ownAsgn,
     rivAsgn: rivAsgn,
@@ -12270,6 +12273,7 @@ active && /*#__PURE__*/React.createElement("button", {
     ownColor: (homeTeam && homeTeam.color) || '#1565C0',
     rivColor: (awayTeam && awayTeam.color) || '#C62828'
   }), view3d && curPlay && /*#__PURE__*/React.createElement(Pizarra3D, {
+    key: 'p3d' + icNonce,
     play: curPlay,
     ownAsgn: ownAsgn,
     rivAsgn: rivAsgn,
