@@ -317,6 +317,13 @@ try {
   .dbm-mtabs { display: flex !important; }
   .dbm-match-top { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
   .dbm-match-top::-webkit-scrollbar { display: none; }
+  /* Fondo oscuro tras el cajón abierto: lo separa visualmente del campo. */
+  body.dbm-open-roster::after, body.dbm-open-plays::after {
+    content: ''; position: fixed; left: 0; right: 0; top: 50px; bottom: 0;
+    background: rgba(3,4,10,0.6); z-index: 8890; pointer-events: none;
+  }
+  /* El cajón abierto: scroll propio y sombra clara. */
+  .dbm-side-roster, .dbm-side-plays { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 }
 </style>
 <script>
@@ -4573,14 +4580,15 @@ function Pizarra3D(_p) {
       }
       if (obj){ obj.userData={ born:(an.bornAt!=null?an.bornAt:0), dies:(an.diesAt!=null?an.diesAt:1e9) }; annGroup.add(obj); }
     });
-    var yaw=0, pit=0.95, R=full?125:80, tgt=new THREE.Vector3(0,0,FD*(full?0.5:0.42));
+    var _mob = (W && W < 600); var _zoomK = W < 430 ? 1.7 : (W < 600 ? 1.42 : 1);
+    var yaw=0, pit=0.95, R=(full?125:80)*_zoomK, tgt=new THREE.Vector3(0,0,FD*(full?0.5:0.42));
     function upd(){ cam.position.set(tgt.x+R*Math.cos(pit)*Math.sin(yaw), tgt.y+R*Math.sin(pit), tgt.z+R*Math.cos(pit)*Math.cos(yaw)); cam.lookAt(tgt); }
     upd();
     var drag=false,lx=0,ly=0;
     function pd(e){ drag=true; lx=e.clientX; ly=e.clientY; }
     function pu(){ drag=false; }
     function pm(e){ if(!drag)return; yaw-=(e.clientX-lx)*0.008; pit=Math.max(0.2,Math.min(1.45,pit-(e.clientY-ly)*0.006)); lx=e.clientX; ly=e.clientY; upd(); }
-    function wh(e){ e.preventDefault(); R=Math.max(38,Math.min(140,R+e.deltaY*0.06)); upd(); }
+    function wh(e){ e.preventDefault(); R=Math.max(38,Math.min(240,R+e.deltaY*0.06)); upd(); }
     mount.addEventListener('pointerdown',pd); window.addEventListener('pointerup',pu); window.addEventListener('pointermove',pm); mount.addEventListener('wheel',wh,{passive:false});
     var raf;
     function tick(){
@@ -13471,7 +13479,7 @@ function LeaguesScreen(props) {
     return React.createElement('div', { style: { padding: 40, color: '#3a3a5a', textAlign: 'center', letterSpacing: 3 } }, 'CARGANDO\u2026');
   }
 
-  return React.createElement('div', { style: { minHeight: '100dvh', background: '#07070e', padding: '20px 16px 60px' } },
+  return React.createElement('div', { style: { height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: '#07070e', padding: '20px 16px 80px' } },
     // Header
     React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 } },
       React.createElement('button', {
@@ -13621,7 +13629,7 @@ function LeagueEditScreen(props) {
 
   if (loading || !league) return React.createElement('div', { style: { padding: 40, color: '#3a3a5a', textAlign: 'center', letterSpacing: 3 } }, 'CARGANDO\u2026');
 
-  return React.createElement('div', { style: { minHeight: '100dvh', background: '#07070e', padding: '20px 16px 60px' } },
+  return React.createElement('div', { style: { height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: '#07070e', padding: '20px 16px 80px' } },
     React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 } },
       React.createElement('button', { onClick: onBack, style: { background: 'transparent', border: '1px solid #2a2a3a', color: '#9ba3b8', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' } }, '\u25C0 LIGAS'),
       React.createElement('div', { style: { flex: 1 } },
