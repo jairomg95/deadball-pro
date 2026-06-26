@@ -819,16 +819,24 @@ window.dbmStartGhost = function(item, e) {
   var rim = isRival ? '#FF5252' : '#42A5F5';
   var ghost = document.createElement('div');
   ghost.className = 'dbm-drag-ghost';
-  var circleHtml;
-  if (photo) {
-    circleHtml = '<div class="dbm-ghost-wrap">' +
-      '<div class="dbm-ghost-circle dbm-ghost-photo" style="background-image:url(' + photo + ');border-color:' + rim + '"></div>' +
-      '<div class="dbm-ghost-badge" style="background:' + rim + '">' + num + '</div>' +
-    '</div>';
+  // Saneamiento anti-XSS: la foto puede venir de datos sincronizados/importados.
+  var safePhoto = photo ? String(photo).replace(/["'\\\r\n]/g, '') : null;
+  if (safePhoto && !/^(https?:\/\/|data:image\/)/i.test(safePhoto)) safePhoto = null;
+  var numStr = (num !== undefined && num !== null) ? String(num) : '';
+  if (safePhoto) {
+    var _wrap = document.createElement('div'); _wrap.className = 'dbm-ghost-wrap';
+    var _ph = document.createElement('div'); _ph.className = 'dbm-ghost-circle dbm-ghost-photo';
+    _ph.style.backgroundImage = 'url("' + safePhoto + '")'; _ph.style.borderColor = rim;
+    var _bdg = document.createElement('div'); _bdg.className = 'dbm-ghost-badge';
+    _bdg.style.background = rim; _bdg.textContent = numStr;
+    _wrap.appendChild(_ph); _wrap.appendChild(_bdg); ghost.appendChild(_wrap);
   } else {
-    circleHtml = '<div class="dbm-ghost-circle" style="background:' + color + ';border-color:' + rim + '"><span>' + num + '</span></div>';
+    var _c = document.createElement('div'); _c.className = 'dbm-ghost-circle';
+    _c.style.background = color; _c.style.borderColor = rim;
+    var _sp = document.createElement('span'); _sp.textContent = numStr;
+    _c.appendChild(_sp); ghost.appendChild(_c);
   }
-  ghost.innerHTML = circleHtml + (name ? '<div class="dbm-ghost-name">' + name + '</div>' : '');
+  if (name) { var _nm = document.createElement('div'); _nm.className = 'dbm-ghost-name'; _nm.textContent = name; ghost.appendChild(_nm); }
   document.body.appendChild(ghost);
   function move(ev) {
     ghost.style.left = (ev.clientX) + 'px';
@@ -3901,8 +3909,9 @@ function _importBackup() {
   _importBackup = _asyncToGenerator(function* (file) {
     var mode = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'merge';
     var text = yield file.text();
-    var data = JSON.parse(text);
-    if (!data.tables) throw new Error('Backup inválido');
+    var data;
+    try { data = JSON.parse(text); } catch (e) { throw new Error('El archivo no es un backup válido (JSON corrupto o ilegible).'); }
+    if (!data || !data.tables) throw new Error('Backup inválido');
     if (mode === 'replace') {
       for (var t of BACKUP_TABLES) {
         try {
@@ -15012,7 +15021,7 @@ if('serviceWorker' in navigator){
       document.getElementById('dbmForgot').onclick=function(){ resetPassword((document.getElementById('dbmEmail')||{}).value, setStatus); };
     } else {
       p.innerHTML='<h4>☁ Sincronizado</h4>'+
-        '<div style="color:#cfe;word-break:break-all">'+currentUser.email+'</div>'+
+        '<div style="color:#cfe;word-break:break-all">'+String(currentUser.email||'').replace(/[&<>"]/g,function(c){return '&#'+c.charCodeAt(0)+';';})+'</div>'+
         '<button class="act" id="dbmSyncNow">Sincronizar ahora</button>'+
         '<div class="row"><button class="act sec" id="dbmPull">Bajar nube</button>'+
         '<button class="act sec" id="dbmLogout">Salir</button></div>'+
