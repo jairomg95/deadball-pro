@@ -5401,7 +5401,14 @@ function BenchPanel(_ref9) {
     onDeployRival = _ref9.onDeployRival,
     canSub = _ref9.canSub,
     markMap = _ref9.markMap,
-    rivColor = _ref9.rivColor;
+    rivColor = _ref9.rivColor,
+    ownColor = _ref9.ownColor;
+  var _owC = ownColor || '#1565C0';
+  var _owRgb = dbmHexRgb(_owC), _owLum = 0.299 * _owRgb[0] + 0.587 * _owRgb[1] + 0.114 * _owRgb[2];
+  var _owInk = _owLum > 150 ? '#0c1020' : '#ffffff';
+  var _owBorder = _owLum > 205 ? 'rgba(0,0,0,0.45)' : _owC;
+  var _owDark = 'rgb(' + Math.round(_owRgb[0] * 0.5) + ',' + Math.round(_owRgb[1] * 0.5) + ',' + Math.round(_owRgb[2] * 0.5) + ')';
+  var _owHead = _owLum > 110 ? _owC : ('rgb(' + Math.min(255, Math.round(_owRgb[0] * 1.7 + 60)) + ',' + Math.min(255, Math.round(_owRgb[1] * 1.7 + 60)) + ',' + Math.min(255, Math.round(_owRgb[2] * 1.7 + 60)) + ')');
   // Color real del rival para las miniaturas + contraste automático
   var _rvC = rivColor || '#C62828';
   var _rvRgb = dbmHexRgb(_rvC), _rvLum = 0.299 * _rvRgb[0] + 0.587 * _rvRgb[1] + 0.114 * _rvRgb[2];
@@ -5487,7 +5494,7 @@ function BenchPanel(_ref9) {
       _ref0$size = _ref0.size,
       size = _ref0$size === void 0 ? 44 : _ref0$size,
       disabled = _ref0.disabled;
-    var accent = assignedTeam === 'rival' ? '#FF5252' : '#42A5F5';
+    var accent = assignedTeam === 'rival' ? (rivColor || '#FF5252') : _owC;
     var hasPhoto = !!photo && String(photo).indexOf('data:image/svg') !== 0;
     var badgeSize = Math.max(15, Math.round(size * 0.42));
     return /*#__PURE__*/React.createElement("div", {
@@ -5498,8 +5505,8 @@ function BenchPanel(_ref9) {
         width: size,
         height: size,
         borderRadius: '50%',
-        background: hasPhoto ? '#0e0e1a' : (assignedTeam === 'rival' ? 'radial-gradient(circle at 50% 30%, #e04848, #6e1f1f)' : 'radial-gradient(circle at 50% 30%, #3f80e6, #1b3d77)'),
-        border: "2px solid ".concat(used ? accent : (hasPhoto ? '#3a3a4a' : (assignedTeam === 'rival' ? '#FF8A80' : '#6aa6ff'))),
+        background: hasPhoto ? '#0e0e1a' : (assignedTeam === 'rival' ? 'radial-gradient(circle at 50% 30%, #e04848, #6e1f1f)' : ('radial-gradient(circle at 50% 30%, ' + _owC + ', ' + _owDark + ')')),
+        border: "2px solid ".concat(used ? accent : (hasPhoto ? '#3a3a4a' : (assignedTeam === 'rival' ? (rivColor || '#FF8A80') : _owBorder))),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: disabled ? 'default' : onPDown ? 'grab' : 'pointer',
         opacity: disabled ? 0.3 : (used ? 0.72 : 1),
@@ -5602,7 +5609,7 @@ function BenchPanel(_ref9) {
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 8,
-      color: '#42A5F5',
+      color: _owHead,
       fontWeight: 700,
       letterSpacing: 1.5,
       marginBottom: 6,
@@ -5637,10 +5644,10 @@ function BenchPanel(_ref9) {
       title: "#".concat(num, " ").concat(((_s$player2 = s.player) === null || _s$player2 === void 0 ? void 0 : _s$player2.name) || '').concat(((_s$player2 = s.player) === null || _s$player2 === void 0 ? void 0 : _s$player2.height) ? ' · ' + s.player.height + 'cm' : '', " \u2014 arrastra al campo o tap para sustituir"),
       style: {
         width: 40, height: 40, borderRadius: '50%',
-        background: s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? '#0e0e1a' : (isSub ? 'radial-gradient(circle at 50% 30%, #34c759, #166b32)' : 'radial-gradient(circle at 50% 30%, #3f80e6, #1b3d77)'),
+        background: s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? '#0e0e1a' : (isSub ? 'radial-gradient(circle at 50% 30%, #34c759, #166b32)' : ('radial-gradient(circle at 50% 30%, ' + _owC + ', ' + _owDark + ')')),
         backgroundImage: s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? 'url(' + s.player.photo + ')' : 'none',
         backgroundSize: 'cover', backgroundPosition: 'center top',
-        border: "2px solid ".concat(hm ? '#FF8C00' : isSub ? '#39FF14' : used ? '#42A5F5' : '#7fb4ff'),
+        border: "2px solid ".concat(hm ? '#FF8C00' : isSub ? '#39FF14' : _owBorder),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'grab', touchAction: 'none', position: 'relative',
         userSelect: 'none', flexShrink: 0,
@@ -5653,15 +5660,15 @@ function BenchPanel(_ref9) {
       style: {
         fontFamily: "'DBMono','Courier New',monospace",
         fontWeight: 900, fontSize: 15,
-        color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.6)'
+        color: _owInk, textShadow: _owInk === '#ffffff' ? '0 1px 2px rgba(0,0,0,0.6)' : 'none'
       }
     }, num),
     s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 && /*#__PURE__*/React.createElement("div", {
       style: {
         position: 'absolute', bottom: -1, right: -1,
         width: 17, height: 17, borderRadius: '50%',
-        background: isSub ? '#39FF14' : '#42A5F5',
-        color: isSub ? '#07070e' : 'white',
+        background: isSub ? '#39FF14' : _owC,
+        color: isSub ? '#07070e' : _owInk,
         border: '1.5px solid #07070e',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: "'DBMono','Courier New',monospace", fontWeight: 900,
@@ -5673,7 +5680,7 @@ function BenchPanel(_ref9) {
       style: {
         position: 'absolute', top: -3, right: -3,
         width: 9, height: 9, borderRadius: '50%',
-        background: '#42A5F5', border: '1px solid #07070e'
+        background: _owC, border: '1px solid #07070e'
       }
     }));
   }))), /*#__PURE__*/React.createElement("div", {
@@ -5721,7 +5728,7 @@ function BenchPanel(_ref9) {
         background: s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? '#0e0e1a' : (used ? '#1565C033' : '#1a1a2e'),
         backgroundImage: s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? 'url(' + s.player.photo + ')' : 'none',
         backgroundSize: 'cover', backgroundPosition: 'center top',
-        border: "2px solid ".concat(used ? '#42A5F5' : (s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? '#3a3a4a' : '#2a2a3a')),
+        border: "2px solid ".concat(used ? _owBorder : (s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 ? '#3a3a4a' : '#2a2a3a')),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'grab', touchAction: 'none', position: 'relative',
         userSelect: 'none', flexShrink: 0, overflow: 'hidden',
@@ -5731,14 +5738,14 @@ function BenchPanel(_ref9) {
       style: {
         fontFamily: "'DBMono','Courier New',monospace",
         fontWeight: 900, fontSize: 12,
-        color: used ? '#42A5F5' : '#9ba3b8'
+        color: used ? _owHead : '#9ba3b8'
       }
     }, num),
     s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0 && /*#__PURE__*/React.createElement("div", {
       style: {
         position: 'absolute', bottom: -1, right: -1,
         width: 15, height: 15, borderRadius: '50%',
-        background: '#42A5F5', color: 'white',
+        background: _owC, color: _owInk,
         border: '1.5px solid #07070e',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: "'DBMono','Courier New',monospace", fontWeight: 900,
@@ -5750,7 +5757,7 @@ function BenchPanel(_ref9) {
       style: {
         position: 'absolute', top: -3, right: -3,
         width: 8, height: 8, borderRadius: '50%',
-        background: '#42A5F5', border: '1px solid #07070e'
+        background: _owC, border: '1px solid #07070e'
       }
     }));
   }))), subbedOff.length > 0 && /*#__PURE__*/React.createElement("div", {
@@ -11682,7 +11689,8 @@ function MatchDayScreen(_ref28) {
     onDeployRival: function () { deployTeam('rival'); },
     canSub: canSub,
     markMap: markMap,
-    rivColor: dbmRivalColor(homeTeam, awayTeam)
+    rivColor: dbmRivalColor(homeTeam, awayTeam),
+    ownColor: (homeTeam && homeTeam.color) || '#1565C0'
   }), !presentMode && /*#__PURE__*/React.createElement("div", {
     className: 'dbm-side-plays',
     style: {
