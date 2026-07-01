@@ -15031,6 +15031,20 @@ if('serviceWorker' in navigator){
     var panel=document.createElement('div'); panel.id='dbmSyncPanel';
     document.body.appendChild(panel);
     btn.onclick=function(){ panel.classList.toggle('show'); };
+
+    // ── Buzón de sugerencias / reporte de fallos (correo prerellenado, sin backend) ──
+    try { if (window.caches) caches.keys().then(function(ks){ window.__dbmVer = (ks||[]).filter(function(x){return /dbm-pro/.test(x);}).pop() || ''; }); } catch(e) {}
+    var FEEDBACK_EMAIL = 'jairomartingonzalez95@gmail.com';
+    var fb=document.createElement('button'); fb.id='dbmFbBtn'; fb.title='Sugerencias / Reportar un fallo';
+    fb.textContent='💬';
+    fb.style.cssText='position:fixed;left:64px;bottom:10px;z-index:99999;width:46px;height:46px;border-radius:50%;background:#0c0c1a;border:1.5px solid #7fb2ff66;color:#7fb2ff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 10px #000a;padding:0';
+    fb.onclick=function(){
+      var info='\n\n———\nPor favor, no borres esto (ayuda a localizar el fallo):\nApp: DeadBall Manager PRO\nVersión: '+(window.__dbmVer||'—')+'\nPágina: '+location.href+'\nDispositivo: '+navigator.userAgent+'\nFecha: '+new Date().toLocaleString();
+      var subject=encodeURIComponent('DeadBall Manager — Sugerencia / Reporte de fallo');
+      var body=encodeURIComponent('Cuéntame tu sugerencia o el fallo (qué hacías, qué esperabas y qué pasó):\n\n'+info);
+      window.location.href='mailto:'+FEEDBACK_EMAIL+'?subject='+subject+'&body='+body;
+    };
+    document.body.appendChild(fb);
     // Cerrar el panel al pulsar en cualquier otra parte de la pantalla.
     document.addEventListener('pointerdown', function(e){
       if(!panel.classList.contains('show')) return;
