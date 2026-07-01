@@ -996,6 +996,33 @@ function dbmDefaultSquad(teamId, color) {
   });
 }
 
+// ── Colores SECUNDARIOS (2ª equipación / escudo) por equipo, para diferenciar cuando local y visitante comparten color ──
+var DBM_SEC = {
+  'UD Almería':'#12224F','Albacete BP':'#FFFFFF','FC Andorra':'#0E2A4E','Burgos CF':'#FFFFFF',
+  'Cádiz CF':'#10275F','CD Castellón':'#111418','AD Ceuta FC':'#FFFFFF','Córdoba CF':'#FFFFFF',
+  'Cultural Leonesa':'#111418','RC Deportivo':'#FFFFFF','SD Eibar':'#25336B','Granada CF':'#0B2A4A',
+  'SD Huesca':'#FFFFFF','CD Leganés':'#FFFFFF','Málaga CF':'#FFFFFF','CD Mirandés':'#111418',
+  'UD Las Palmas':'#1B4F8A','R. Racing Santander':'#FFFFFF','Real Sociedad B':'#FFFFFF','Sporting Gijón':'#16255A',
+  'Real Valladolid':'#FFFFFF','Real Zaragoza':'#FFFFFF','Real Madrid':'#122140','FC Barcelona':'#F4D03F',
+  'Atlético de Madrid':'#16233F','Athletic Club':'#111418','Real Sociedad':'#FFFFFF','Villarreal CF':'#10284A',
+  'Real Betis':'#14213D','Sevilla FC':'#111418','Valencia CF':'#111418','RC Celta':'#B4151E',
+  'Rayo Vallecano':'#111418','CA Osasuna':'#C31815','RCD Mallorca':'#111418','Getafe CF':'#FFFFFF',
+  'Girona FC':'#FFFFFF','Deportivo Alavés':'#FFFFFF','RCD Espanyol':'#FFFFFF','Levante UD':'#16509E',
+  'Elche CF':'#FFFFFF','Real Oviedo':'#FFFFFF','Equipo A':'#FFFFFF','Equipo B':'#F2F2F2'
+};
+function dbmHexRgb(h){ h=String(h||'').replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; var n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function dbmSameCol(a,b){ try{ var x=dbmHexRgb(a),y=dbmHexRgb(b); var d=Math.sqrt(Math.pow(x[0]-y[0],2)+Math.pow(x[1]-y[1],2)+Math.pow(x[2]-y[2],2)); return d<90; }catch(e){ return false; } }
+// Secundario de reserva si un equipo no está en el mapa: navy si el color es claro, blanco si es oscuro
+function dbmSecondary(hex){ try{ var c=dbmHexRgb(hex); var lum=(0.299*c[0]+0.587*c[1]+0.114*c[2]); return lum>140 ? '#12213F' : '#FFFFFF'; }catch(e){ return '#FFFFFF'; } }
+// Color del visitante: si choca con el local, usa su secundario (mapa > color2 guardado > reserva calculada)
+function dbmRivalColor(homeTeam, awayTeam){
+  var oc = (homeTeam && homeTeam.color) || '#1565C0';
+  var rc = (awayTeam && awayTeam.color) || '#C62828';
+  if (!dbmSameCol(oc, rc)) return rc;
+  var sec = (awayTeam && (DBM_SEC[awayTeam.name] || awayTeam.color2)) || dbmSecondary(rc);
+  return dbmSameCol(sec, oc) ? dbmSecondary(oc) : sec;
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // EQUIPOS LALIGA HYPERMOTION 2025/26 (22 equipos verificados)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -4340,6 +4367,10 @@ var Token = React.memo(function Token(_ref6) {
   var teamColor = _ref6.teamColor;
   var base = customCol || teamColor || (isRiv ? '#C62828' : '#1565C0');
   var rim = customCol || teamColor || (isRiv ? '#FF5252' : '#42A5F5');
+  // Contraste automático: si el color del equipo es claro (2ª equipación blanca, etc.), dorsal oscuro y borde definido
+  var _lum = (function(){ try{ var hh=String(base).replace('#',''); if(hh.length===3)hh=hh[0]+hh[0]+hh[1]+hh[1]+hh[2]+hh[2]; var n=parseInt(hh,16); return (0.299*((n>>16)&255)+0.587*((n>>8)&255)+0.114*(n&255)); }catch(e){ return 0; } })();
+  var ink = _lum > 150 ? '#0c1020' : 'rgba(255,255,255,0.95)';
+  var rimC = _lum > 205 ? 'rgba(0,0,0,0.4)' : rim;
   var fs = hasN ? (num >= 10 ? Math.round(R * 0.61) : Math.round(R * 0.78)) : Math.round(R * 0.44);
   // Etiqueta opcional: si se ha definido (aunque sea vacía) se respeta; si no, cae al label/role_key.
   var lbl = (customLabel !== undefined && customLabel !== null) ? customLabel : (role.label || role.role_key.replace(/_/g, ' '));
@@ -4379,11 +4410,11 @@ var Token = React.memo(function Token(_ref6) {
         )
       ),
       // Fondo = color del equipo + dorsal, por si la foto no carga (móvil/URL caída): se ve el número, no negro.
-      React.createElement("circle", { r: R, fill: base, stroke: rim, strokeWidth: 1.5 }),
+      React.createElement("circle", { r: R, fill: base, stroke: rimC, strokeWidth: 1.5 }),
       React.createElement("text", {
         textAnchor: "middle", dominantBaseline: "central",
         fontSize: num >= 10 ? Math.round(R * 0.58) : Math.round(R * 0.74),
-        fontWeight: "900", fill: "rgba(255,255,255,0.92)",
+        fontWeight: "900", fill: ink,
         style: { fontFamily: "'DBMono','Courier New',monospace", pointerEvents: 'none' }
       }, num),
       React.createElement("image", {
@@ -4421,20 +4452,20 @@ var Token = React.memo(function Token(_ref6) {
       React.createElement("text", {
         x: badgeX, y: badgeY,
         textAnchor: "middle", dominantBaseline: "central",
-        fontSize: badgeFs, fontWeight: "900", fill: "white",
+        fontSize: badgeFs, fontWeight: "900", fill: ink,
         style: { fontFamily: "'DBMono','Courier New',monospace", pointerEvents: 'none' }
       }, num)
     ) : React.createElement(React.Fragment, null,
       React.createElement("circle", {
         r: R, fill: hasN ? base : '#182030',
-        stroke: selected ? '#39FF14' : (hasN ? rim : '#2a3a50'),
+        stroke: selected ? '#39FF14' : (hasN ? rimC : '#2a3a50'),
         strokeWidth: selected ? 2.5 : (hasN ? 2 : 1.5),
         filter: hasN ? 'url(#tgl)' : undefined
       }),
       isRiv && hasN && React.createElement("circle", { r: R - 7, fill: "none", stroke: "rgba(255,255,255,0.14)", strokeWidth: 1 }),
       React.createElement("text", {
         textAnchor: "middle", dominantBaseline: "central",
-        fontSize: fs, fontWeight: "900", fill: "white",
+        fontSize: fs, fontWeight: "900", fill: ink,
         style: { fontFamily: "'DBMono','Courier New',monospace", pointerEvents: 'none' }
       }, hasN ? num : lbl.slice(0, 3))
     ),
@@ -10361,7 +10392,7 @@ function MatchDayScreen(_ref28) {
         var sn = (s.player && s.player.squad_number != null) ? s.player.squad_number : null;
         newTeamRoles.push({ role_key: rk, label: '', custom_label: '', x: p.x, y: p.y, team: 'own', arrows: [] });
         posMap[rk] = { x: p.x, y: p.y };
-        teamAsgn[rk] = { player_id: s.player_id, squad_number: sn, name: (s.player && s.player.name) || '', photo: (s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0) || null, height: (s.player && s.player.height) || null };
+        teamAsgn[rk] = { player_id: s.player_id, squad_number: sn, name: (s.player && s.player.name) || '', photo: (s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0) ? s.player.photo : null, height: (s.player && s.player.height) || null };
         calls.push([rk, s.player_id]);
       } else {
         var rk2 = 'RIV' + (i + 1);
@@ -12280,7 +12311,7 @@ active && /*#__PURE__*/React.createElement("button", {
     onTokenDrop: handleTokenDrop,
     light: pitchLight,
     ownColor: (homeTeam && homeTeam.color) || '#1565C0',
-    rivColor: (awayTeam && awayTeam.color) || '#C62828'
+    rivColor: dbmRivalColor(homeTeam, awayTeam)
   }), view3d && curPlay && /*#__PURE__*/React.createElement(Pizarra3D, {
     key: 'p3d' + icNonce,
     play: curPlay,
@@ -12290,7 +12321,7 @@ active && /*#__PURE__*/React.createElement("button", {
     interpData: interpData,
     light: pitchLight,
     ownColor: (homeTeam && homeTeam.color) || '#1565C0',
-    rivColor: (awayTeam && awayTeam.color) || '#C62828'
+    rivColor: dbmRivalColor(homeTeam, awayTeam)
   }), !curPlay && /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'absolute',
