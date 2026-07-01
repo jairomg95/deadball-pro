@@ -5400,7 +5400,15 @@ function BenchPanel(_ref9) {
     onDeployOwn = _ref9.onDeployOwn,
     onDeployRival = _ref9.onDeployRival,
     canSub = _ref9.canSub,
-    markMap = _ref9.markMap;
+    markMap = _ref9.markMap,
+    rivColor = _ref9.rivColor;
+  // Color real del rival para las miniaturas + contraste automático
+  var _rvC = rivColor || '#C62828';
+  var _rvRgb = dbmHexRgb(_rvC), _rvLum = 0.299 * _rvRgb[0] + 0.587 * _rvRgb[1] + 0.114 * _rvRgb[2];
+  var _rvInk = _rvLum > 150 ? '#0c1020' : '#ffffff';
+  var _rvBorder = _rvLum > 205 ? 'rgba(0,0,0,0.45)' : _rvC;
+  var _rvDark = 'rgb(' + Math.round(_rvRgb[0] * 0.5) + ',' + Math.round(_rvRgb[1] * 0.5) + ',' + Math.round(_rvRgb[2] * 0.5) + ')';
+  var _rvHead = _rvLum > 110 ? _rvC : ('rgb(' + Math.min(255, Math.round(_rvRgb[0] * 1.7 + 60)) + ',' + Math.min(255, Math.round(_rvRgb[1] * 1.7 + 60)) + ',' + Math.min(255, Math.round(_rvRgb[2] * 1.7 + 60)) + ')');
   var _bOpen = useState(false), benchOpen = _bOpen[0], setBenchOpen = _bOpen[1];
   var _rbOpen = useState(false), rivBenchOpen = _rbOpen[0], setRivBenchOpen = _rbOpen[1];
   var rivStarters = (rivals || []).filter(r => r.role !== 'sub');
@@ -5421,10 +5429,10 @@ function BenchPanel(_ref9) {
       title: "#".concat(num, " ").concat(r.name || '').concat(r.height ? ' \xb7 ' + r.height + 'cm' : '', " \u2014 arrastra al campo"),
       style: {
         width: 36, height: 36, borderRadius: '50%',
-        background: hasPhoto ? '#0e0e1a' : 'radial-gradient(circle at 50% 30%, #e04848, #6e1f1f)',
+        background: hasPhoto ? '#0e0e1a' : 'radial-gradient(circle at 50% 30%, ' + _rvC + ', ' + _rvDark + ')',
         backgroundImage: hasPhoto ? 'url(' + r.photo + ')' : 'none',
         backgroundSize: 'cover', backgroundPosition: 'center top',
-        border: "2px solid ".concat(used ? '#FF5252' : (hasPhoto ? '#3a3a4a' : '#FF8A80')),
+        border: "2px solid ".concat(used ? _rvBorder : (hasPhoto ? '#3a3a4a' : _rvBorder)),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'grab', touchAction: 'none', position: 'relative',
         userSelect: 'none', flexShrink: 0, overflow: 'hidden',
@@ -5434,13 +5442,13 @@ function BenchPanel(_ref9) {
       }
     },
     !hasPhoto && /*#__PURE__*/React.createElement("span", {
-      style: { fontFamily: "'DBMono','Courier New',monospace", fontWeight: 900, fontSize: (num != null && num !== '' && String(num).length > 1) ? 14 : 16, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
+      style: { fontFamily: "'DBMono','Courier New',monospace", fontWeight: 900, fontSize: (num != null && num !== '' && String(num).length > 1) ? 14 : 16, color: _rvInk, textShadow: _rvInk === '#ffffff' ? '0 1px 2px rgba(0,0,0,0.6)' : 'none' }
     }, (num != null && num !== '') ? num : (r.name ? r.name.trim().slice(0, 2).toUpperCase() : '·')),
     hasPhoto && /*#__PURE__*/React.createElement("div", {
       style: {
         position: 'absolute', bottom: -1, right: -1,
         width: 15, height: 15, borderRadius: '50%',
-        background: '#C62828', color: 'white', border: '1.5px solid #07070e',
+        background: _rvC, color: _rvInk, border: '1.5px solid #07070e',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: "'DBMono','Courier New',monospace", fontWeight: 900,
         fontSize: num >= 10 ? 8 : 10, boxShadow: '0 1px 3px rgba(0,0,0,0.6)'
@@ -5449,14 +5457,14 @@ function BenchPanel(_ref9) {
     hasPhoto && r.height && /*#__PURE__*/React.createElement("div", {
       style: {
         position: 'absolute', bottom: -1, left: -1,
-        background: 'rgba(0,0,0,0.75)', color: '#FF5252',
+        background: 'rgba(0,0,0,0.75)', color: '#e6ebff',
         borderRadius: 3, padding: '0 2px', fontSize: 7, fontWeight: 700,
-        lineHeight: '10px', border: '1px solid #C6282844',
+        lineHeight: '10px', border: '1px solid rgba(255,255,255,0.18)',
         fontFamily: "'DBMono','Courier New',monospace"
       }
     }, r.height),
     used && !hasPhoto && /*#__PURE__*/React.createElement("div", {
-      style: { position: 'absolute', top: -3, right: -3, width: 8, height: 8, borderRadius: '50%', background: '#FF5252', border: '1px solid #07070e' }
+      style: { position: 'absolute', top: -3, right: -3, width: 8, height: 8, borderRadius: '50%', background: _rvC, border: '1px solid #07070e' }
     }));
   }
   function startDrag(item, e) {
@@ -5792,7 +5800,7 @@ function BenchPanel(_ref9) {
     style: { padding: '8px 8px', flex: 1, overflow: 'auto' }
   },
   /*#__PURE__*/React.createElement("div", {
-    style: { fontSize: 8, color: '#FF5252', fontWeight: 700, letterSpacing: 1.5, marginBottom: 6, display: 'flex', justifyContent: 'space-between' }
+    style: { fontSize: 8, color: _rvHead, fontWeight: 700, letterSpacing: 1.5, marginBottom: 6, display: 'flex', justifyContent: 'space-between' }
   }, /*#__PURE__*/React.createElement("span", null, "RIVAL TITULAR"), /*#__PURE__*/React.createElement("span", { style: { color: '#4a4a6a' } }, rivStarters.length + "/11")),
   /*#__PURE__*/React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 } }, rivStarters.map(r => renderRivTok(r))),
   rivBench.length > 0 && /*#__PURE__*/React.createElement("div", {
@@ -11673,7 +11681,8 @@ function MatchDayScreen(_ref28) {
     onDeployOwn: function () { deployTeam('own'); },
     onDeployRival: function () { deployTeam('rival'); },
     canSub: canSub,
-    markMap: markMap
+    markMap: markMap,
+    rivColor: dbmRivalColor(homeTeam, awayTeam)
   }), !presentMode && /*#__PURE__*/React.createElement("div", {
     className: 'dbm-side-plays',
     style: {
