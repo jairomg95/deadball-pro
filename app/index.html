@@ -1022,6 +1022,17 @@ function dbmRivalColor(homeTeam, awayTeam){
   var sec = (awayTeam && (DBM_SEC[awayTeam.name] || awayTeam.color2)) || dbmSecondary(rc);
   return dbmSameCol(sec, oc) ? dbmSecondary(oc) : sec;
 }
+// El portero va con equipación aparte: color contrastado con el de su equipo
+function dbmIsGK(posStr){ return /^(gk|por|pt|portero|goalkeeper)$/i.test(String(posStr || '').trim()); }
+function dbmGkColor(teamHex){
+  try {
+    var c = dbmHexRgb(teamHex);
+    var warm = c[0] > c[2] + 25; // rojo/naranja/amarillo => portero frío
+    var gk = warm ? '#00C2B8' : '#FFC400';
+    if (dbmSameCol(gk, teamHex)) gk = warm ? '#8E24AA' : '#00C2B8';
+    return gk;
+  } catch (e) { return '#FFC400'; }
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // EQUIPOS LALIGA HYPERMOTION 2025/26 (22 equipos verificados)
@@ -4358,7 +4369,9 @@ var Token = React.memo(function Token(_ref6) {
     _ref6$dragging = _ref6.dragging,
     dragging = _ref6$dragging === void 0 ? false : _ref6$dragging,
     _ref6$team = _ref6.team,
-    team = _ref6$team === void 0 ? 'own' : _ref6$team;
+    team = _ref6$team === void 0 ? 'own' : _ref6$team,
+    gk = _ref6.gk,
+    cbMark = _ref6.cbMark;
   var cx = role.x * W, cy = role.y * (_ref6.fh || H);
   var isRiv = team === 'rival' || role.team === 'rival';
   var hasN = num != null;
@@ -4396,6 +4409,7 @@ var Token = React.memo(function Token(_ref6) {
     ),
     selected && React.createElement("circle", { r: R + 8, fill: "none", stroke: "#39FF14", strokeWidth: 2.5 }),
     isSubIn && !selected && React.createElement("circle", { r: R + 6, fill: "none", stroke: "#39FF14", strokeWidth: 1.5, opacity: 0.5 }),
+    cbMark && React.createElement("circle", { r: R + 4, fill: "none", stroke: "#ffffff", strokeWidth: 2, strokeDasharray: "3,3", opacity: 0.92 }),
     !hasN && React.createElement("circle", {
       r: R + 6, fill: "none", stroke: isRiv ? '#FF5252' : '#ffaa00',
       strokeWidth: 2, strokeDasharray: "4,3", opacity: 0.7
@@ -4481,7 +4495,11 @@ var Token = React.memo(function Token(_ref6) {
       textAnchor: "middle", dominantBaseline: "central",
       fontSize: 11, fontWeight: "900", fill: "#39FF14",
       style: { pointerEvents: 'none' }
-    }, "\u2191")
+    }, "\u2191"),
+    gk && /*#__PURE__*/React.createElement("g", { style: { pointerEvents: 'none' } },
+      React.createElement("circle", { cx: -R * 0.66, cy: -R * 0.66, r: Math.max(7, R * 0.36), fill: "#0c1020", stroke: "#fff", strokeWidth: 1.2 }),
+      React.createElement("text", { x: -R * 0.66, y: -R * 0.66, textAnchor: "middle", dominantBaseline: "central", fontSize: Math.max(8, R * 0.42), fontWeight: "900", fill: "#fff", style: { fontFamily: "'DBMono','Courier New',monospace" } }, "P")
+    )
   );
 });
 
@@ -4513,10 +4531,12 @@ function Ball(_ref7) {
     cy: R + 4,
     fill: "rgba(0,0,0,0.45)"
   }), /*#__PURE__*/React.createElement("circle", {
+    r: R + 1.4, fill: "none", stroke: "rgba(0,0,0,0.5)", strokeWidth: 2
+  }), /*#__PURE__*/React.createElement("circle", {
     r: R,
     fill: "white",
     stroke: "#1a1a1a",
-    strokeWidth: 1.2
+    strokeWidth: 1.6
   }), /*#__PURE__*/React.createElement("circle", {
     r: R,
     fill: "url(#ballGrad)"
@@ -4598,14 +4618,15 @@ function Pizarra3D(_p) {
     function goal(z, dirSign){ [[-3.66,z],[3.66,z]].forEach(function(p){ var po=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,3,8), new THREE.MeshLambertMaterial({color:postC})); po.position.set(p[0],1.5,z); scene.add(po); }); var gb=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,7.32,8), new THREE.MeshLambertMaterial({color:postC})); gb.rotation.z=Math.PI/2; gb.position.set(0,3,z); scene.add(gb); }
     goal(0);
     if (full) goal(FD);
-    function numSprite(n,col){ var cv=document.createElement('canvas'); cv.width=cv.height=128; var x=cv.getContext('2d'); x.fillStyle=col; x.beginPath(); x.arc(64,64,58,0,7); x.fill(); x.strokeStyle='#ffffff'; x.lineWidth=7; x.stroke(); x.fillStyle='#ffffff'; x.font='bold 70px Arial'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(String(n),64,70); return new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(cv), depthTest:false })); }
+    function numSprite(n,col){ var cv=document.createElement('canvas'); cv.width=cv.height=128; var x=cv.getContext('2d'); x.fillStyle=col; x.beginPath(); x.arc(64,64,58,0,7); x.fill(); var _l=0; try{ var _c=dbmHexRgb(col); _l=0.299*_c[0]+0.587*_c[1]+0.114*_c[2]; }catch(e){} var ink=_l>150?'#0c1020':'#ffffff'; x.strokeStyle=_l>205?'rgba(0,0,0,0.5)':'#ffffff'; x.lineWidth=7; x.stroke(); x.fillStyle=ink; x.font='bold 70px Arial'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(String(n),64,70); return new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(cv), depthTest:false })); }
     var tokens = {};
     (play.canvas_data.roles || []).forEach(function(r){
       var isRiv = r.team === 'rival';
+      var asg = isRiv ? rivAsgn[r.role_key] : ownAsgn[r.role_key];
       var col = isRiv ? rivCol3 : ownCol3;
+      if (asg && asg.is_gk) { try { col = parseInt(dbmGkColor('#'+col.toString(16).padStart(6,'0')).slice(1), 16); } catch(e){} }
       var g = new THREE.Group();
       var cyl = new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,0.5,24), new THREE.MeshLambertMaterial({ color: col })); cyl.position.y=0.25; g.add(cyl);
-      var asg = isRiv ? rivAsgn[r.role_key] : ownAsgn[r.role_key];
       var num = (asg && asg.squad_number != null) ? asg.squad_number : '';
       var ns = numSprite(num, '#'+col.toString(16).padStart(6,'0')); ns.scale.set(3.4,3.4,1); ns.position.y=2.4; g.add(ns);
       scene.add(g); tokens[r.role_key] = g;
@@ -4674,6 +4695,10 @@ function InteractiveCanvas(_ref8) {
     ownAsgn = _ref8.ownAsgn,
     rivAsgn = _ref8.rivAsgn,
     onField = _ref8.onField,
+    rivals = _ref8.rivals,
+    cbMode = _ref8.cbMode,
+    homeLogo = _ref8.homeLogo,
+    awayLogo = _ref8.awayLogo,
     activePhaseId = _ref8.activePhaseId,
     onMoveRole = _ref8.onMoveRole,
     onRoleClick = _ref8.onRoleClick,
@@ -5151,6 +5176,12 @@ function InteractiveCanvas(_ref8) {
         isSubIn = (sl === null || sl === void 0 ? void 0 : sl.role) === 'on_pitch';
       }
     }
+    // Portero: color de equipación aparte
+    var _tc = isRiv ? _ref8.rivColor : _ref8.ownColor;
+    var _isGk = false;
+    if (isRiv) { var _rr = (rivals || []).find(function (x) { return rv && x.id === rv.id; }); _isGk = !!(_rr && dbmIsGK(_rr.position)); }
+    else { _isGk = !!(sl && sl.player && dbmIsGK(sl.player.position)); }
+    if (_isGk && num != null) _tc = dbmGkColor(_tc);
     var isDragging = (drag === null || drag === void 0 ? void 0 : drag.role_key) === role.role_key;
     var pos = isDragging ? {
       x: drag.x,
@@ -5173,7 +5204,9 @@ function InteractiveCanvas(_ref8) {
       R: Math.round(baseR * tokenScale),
       dragging: isDragging,
       team: role.team,
-      teamColor: isRiv ? _ref8.rivColor : _ref8.ownColor,
+      teamColor: _tc,
+      gk: _isGk,
+      cbMark: !!(cbMode && isRiv),
       fh: FH,
       onPointerDown: readOnly ? undefined : e => handlePointerDown(role, e)
     });
@@ -5223,6 +5256,12 @@ function InteractiveCanvas(_ref8) {
           d: pathD, fill: "none",
           stroke: "transparent", strokeWidth: 18,
           onPointerDown: readOnly ? undefined : function(e) { startAnnotationDrag(a.id, e); }
+        }),
+        /*#__PURE__*/React.createElement("path", {
+          d: pathD, fill: "none",
+          stroke: "rgba(0,0,0,0.5)", strokeWidth: sw + 3,
+          strokeLinecap: "round",
+          style: { pointerEvents: 'none' }
         }),
         /*#__PURE__*/React.createElement("path", {
           d: pathD, fill: "none",
@@ -5402,7 +5441,10 @@ function BenchPanel(_ref9) {
     canSub = _ref9.canSub,
     markMap = _ref9.markMap,
     rivColor = _ref9.rivColor,
-    ownColor = _ref9.ownColor;
+    ownColor = _ref9.ownColor,
+    homeLogo = _ref9.homeLogo,
+    awayLogo = _ref9.awayLogo;
+  function _crestImg(src, col){ return src ? React.createElement("img", { src: src, style: { width: 13, height: 13, borderRadius: 2, objectFit: 'contain', verticalAlign: 'middle', marginRight: 4 }, onError: function(e){ try{ e.target.style.display='none'; }catch(_){} } }) : null; }
   var _owC = ownColor || '#1565C0';
   var _owRgb = dbmHexRgb(_owC), _owLum = 0.299 * _owRgb[0] + 0.587 * _owRgb[1] + 0.114 * _owRgb[2];
   var _owInk = _owLum > 150 ? '#0c1020' : '#ffffff';
@@ -5616,7 +5658,7 @@ function BenchPanel(_ref9) {
       display: 'flex',
       justifyContent: 'space-between'
     }
-  }, /*#__PURE__*/React.createElement("span", null, "EN CAMPO"), /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("span", { style: { display: 'flex', alignItems: 'center' } }, _crestImg(homeLogo), "EN CAMPO"), /*#__PURE__*/React.createElement("span", {
     style: {
       color: '#1e1e30'
     }
@@ -5808,7 +5850,7 @@ function BenchPanel(_ref9) {
   },
   /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 8, color: _rvHead, fontWeight: 700, letterSpacing: 1.5, marginBottom: 6, display: 'flex', justifyContent: 'space-between' }
-  }, /*#__PURE__*/React.createElement("span", null, "RIVAL TITULAR"), /*#__PURE__*/React.createElement("span", { style: { color: '#4a4a6a' } }, rivStarters.length + "/11")),
+  }, /*#__PURE__*/React.createElement("span", { style: { display: 'flex', alignItems: 'center' } }, _crestImg(awayLogo), "RIVAL TITULAR"), /*#__PURE__*/React.createElement("span", { style: { color: '#4a4a6a' } }, rivStarters.length + "/11")),
   /*#__PURE__*/React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 } }, rivStarters.map(r => renderRivTok(r))),
   rivBench.length > 0 && /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 8, color: '#5a3a6a', fontWeight: 700, letterSpacing: 1.5, marginBottom: 4, display: 'flex', justifyContent: 'space-between', cursor: 'pointer', marginTop: 4 },
@@ -9122,6 +9164,8 @@ function MatchDayScreen(_ref28) {
   var _useV3d = useState(false), view3d = _useV3d[0], setView3d = _useV3d[1];
   var _useIcN = useState(0), icNonce = _useIcN[0], setIcNonce = _useIcN[1]; // fuerza remontar la pizarra (p.ej. tras desplegar 11) para que carguen las fotos
   var _useLight = useState(function(){ try { return localStorage.getItem('dbm_pitch_light') === '1'; } catch(e){ return false; } }), pitchLight = _useLight[0], setPitchLight = _useLight[1];
+  var _useCB = useState(function(){ try { return localStorage.getItem('dbm_cb') === '1'; } catch(e){ return false; } }), cbMode = _useCB[0], setCbMode = _useCB[1];
+  function toggleCb() { setCbMode(function(v){ var nv = !v; try { localStorage.setItem('dbm_cb', nv ? '1' : '0'); } catch(e){} return nv; }); }
   function togglePitchLight() { setPitchLight(function(v){ var nv = !v; try { localStorage.setItem('dbm_pitch_light', nv ? '1' : '0'); } catch(e){} return nv; }); }
   var UNDO_WINDOW_MS = 120000;
   var subActive = function(s) { var t = s && s.applied_at ? new Date(s.applied_at).getTime() : 0; return (Date.now() - t) < UNDO_WINDOW_MS; };
@@ -10407,13 +10451,13 @@ function MatchDayScreen(_ref28) {
         var sn = (s.player && s.player.squad_number != null) ? s.player.squad_number : null;
         newTeamRoles.push({ role_key: rk, label: '', custom_label: '', x: p.x, y: p.y, team: 'own', arrows: [] });
         posMap[rk] = { x: p.x, y: p.y };
-        teamAsgn[rk] = { player_id: s.player_id, squad_number: sn, name: (s.player && s.player.name) || '', photo: (s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0) ? s.player.photo : null, height: (s.player && s.player.height) || null };
+        teamAsgn[rk] = { player_id: s.player_id, squad_number: sn, name: (s.player && s.player.name) || '', photo: (s.player && s.player.photo && String(s.player.photo).indexOf('data:image/svg') !== 0) ? s.player.photo : null, height: (s.player && s.player.height) || null, is_gk: dbmIsGK(s.player && s.player.position) };
         calls.push([rk, s.player_id]);
       } else {
         var rk2 = 'RIV' + (i + 1);
         newTeamRoles.push({ role_key: rk2, label: '', custom_label: '', x: p.x, y: p.y, team: 'rival', arrows: [] });
         posMap[rk2] = { x: p.x, y: p.y };
-        teamAsgn[rk2] = { id: s.id, squad_number: s.squad_number, name: s.name || '', photo: s.photo || null, height: s.height || null };
+        teamAsgn[rk2] = { id: s.id, squad_number: s.squad_number, name: s.name || '', photo: s.photo || null, height: s.height || null, is_gk: dbmIsGK(s.position) };
         calls.push([rk2, s.id]);
       }
     });
@@ -11690,7 +11734,9 @@ function MatchDayScreen(_ref28) {
     canSub: canSub,
     markMap: markMap,
     rivColor: dbmRivalColor(homeTeam, awayTeam),
-    ownColor: (homeTeam && homeTeam.color) || '#1565C0'
+    ownColor: (homeTeam && homeTeam.color) || '#1565C0',
+    homeLogo: (homeTeam && homeTeam.logo) || null,
+    awayLogo: (awayTeam && awayTeam.logo) || null
   }), !presentMode && /*#__PURE__*/React.createElement("div", {
     className: 'dbm-side-plays',
     style: {
@@ -12136,6 +12182,15 @@ active && /*#__PURE__*/React.createElement("button", {
       whiteSpace: 'nowrap'
     }
   }, pitchLight ? 'VERDE' : 'BLANCO'), /*#__PURE__*/React.createElement("button", {
+    onClick: toggleCb,
+    title: "Modo dalt\xF3nico: marca al rival con borde punteado",
+    style: {
+      background: cbMode ? '#f0f3ef' : '#1a1a2e',
+      border: "1px solid " + (cbMode ? '#c4ccc2' : '#2a2a3a'),
+      color: cbMode ? '#1a201a' : '#9ba3b8',
+      borderRadius: 3, padding: '3px 8px', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap'
+    }
+  }, "◐ DALT"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setRecMode(r => !r),
     title: "Grabaci\xF3n libre: cada movimiento crea un frame nuevo",
     style: {
@@ -12327,6 +12382,8 @@ active && /*#__PURE__*/React.createElement("button", {
     onRoleLongPress: role => setRoleEditMod(role),
     onTokenDrop: handleTokenDrop,
     light: pitchLight,
+    rivals: rivals,
+    cbMode: cbMode,
     ownColor: (homeTeam && homeTeam.color) || '#1565C0',
     rivColor: dbmRivalColor(homeTeam, awayTeam)
   }), view3d && curPlay && /*#__PURE__*/React.createElement(Pizarra3D, {
